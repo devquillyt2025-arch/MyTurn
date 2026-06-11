@@ -2,3 +2,79 @@
 html, body { min-height: 100vh; }
 body { -webkit-font-smoothing: antialiased; }
 mark.hl { background: rgba(20,216,200,0.25); color: #14D8C8; border-radius: 2px; }
+
+/* ── Dark theme (default) ─────────────────────────── */
+html,
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Background / surface system */
+  --bg: #0F1117;
+  --surface: #1A1D27;
+  --surface2: #22263A;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #E8E6FF;
+  --muted: #7A7A9A;
+
+  /* Brand accent colours */
+  --teal: #14D8C8;
+  --teal-dim: rgba(20,216,200,0.1);
+  --teal-border: rgba(20,216,200,0.25);
+  --amber: #F5A623;
+  --amber-dim: rgba(245,166,35,0.12);
+  --red: #FF5E5E;
+  --red-dim: rgba(255,94,94,0.1);
+  --green: #4DFFB4;
+  --green-dim: rgba(77,255,180,0.1);
+  --purple: #A78BFA;
+
+  /* Patient-page palette (dark-adapted) */
+  --cream: #13151F;
+  --warm-white: #1A1D27;
+  --charcoal: #E8E6FF;
+  --ink: #C0BEDA;
+  --pt-muted: #94a3b8;
+  --pt-border: #334155;
+  --teal-light: rgba(13,115,119,0.2);
+  --teal-mid: #14A89E;
+  --amber-light: rgba(196,130,42,0.15);
+  --green-light: rgba(42,122,74,0.2);
+}
+
+/* ── Light theme ──────────────────────────────────── */
+html[data-theme="light"] {
+  color-scheme: light;
+  /* Background / surface system */
+  --bg: #F0F2F7;
+  --surface: #FFFFFF;
+  --surface2: #E8EBF2;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.14);
+  --text: #1A1D27;
+  --muted: #6B7280;
+
+  /* Brand accent colours */
+  --teal: #0CB8A8;
+  --teal-dim: rgba(12,184,168,0.1);
+  --teal-border: rgba(12,184,168,0.3);
+  --amber: #E09017;
+  --amber-dim: rgba(224,144,23,0.12);
+  --red: #E53535;
+  --red-dim: rgba(229,53,53,0.1);
+  --green: #16A36B;
+  --green-dim: rgba(22,163,107,0.12);
+  --purple: #7C3AED;
+
+  /* Patient-page palette (light — original values) */
+  --cream: #FAF7F2;
+  --warm-white: #FFFEF9;
+  --charcoal: #1C1C1E;
+  --ink: #2C2C2E;
+  --pt-muted: #8A8A8E;
+  --pt-border: #E8E3DB;
+  --teal-light: #E6F4F4;
+  --teal-mid: #14A89E;
+  --amber-light: #FDF3E3;
+  --green-light: #EBF5EF;
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import styles from './page.module.css';
@@ -43,7 +43,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     setMounted(true);
-    document.title = 'QToken — Register Your Clinic';
+    document.title = 'MyTurnApp — Register Your Clinic';
   }, []);
 
   function setField(field: keyof FormState, value: string) {
@@ -92,7 +92,7 @@ export default function OnboardingPage() {
         slug: generatedSlug, maxPatients, slotDuration: duration, days: selectedDays,
         hours: { mStart: morningStart, mEnd: morningEnd, eStart: eveningStart, eEnd: eveningEnd }
       };
-      localStorage.setItem('qtokenClinic', JSON.stringify(clinicData));
+      localStorage.setItem('myturnappClinic', JSON.stringify(clinicData));
     }
 
     setStep(next);
@@ -109,7 +109,7 @@ export default function OnboardingPage() {
     <div className={styles.page}>
       {/* Left panel */}
       <div className={styles.leftPanel}>
-        <div className={styles.brand}>QToken <span>/</span></div>
+        <div className={styles.brand}>MyTurnApp <span>/</span></div>
         <div className={styles.leftHeadline}>Replace paper tokens with a QR code</div>
         <div className={styles.leftSub}>Set up in 3 minutes. Patients scan, pick a slot, and show up on time — no counter queues, no manual tokens.</div>
         <div className={styles.featureList}>
@@ -141,7 +141,7 @@ export default function OnboardingPage() {
             </div>
           ))}
         </div>
-        <div className={styles.leftBottom}>© 2025 QToken · Made for Indian clinics</div>
+        <div className={styles.leftBottom}>© 2025 MyTurnApp · Made for Indian clinics</div>
       </div>
 
       {/* Right panel */}
@@ -173,16 +173,11 @@ export default function OnboardingPage() {
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Specialization</label>
-                <select
-                  className={`${styles.formSelect} ${errors.docSpec ? styles.error : ''}`}
+                <SpecialtyDropdown
                   value={form.docSpec}
-                  onChange={e => setField('docSpec', e.target.value)}
-                >
-                  <option value="">Select specialty</option>
-                  {['General Physician','Paediatrician','Gynaecologist','Dermatologist','Orthopaedic','ENT Specialist','Cardiologist','Neurologist','Dentist','Ophthalmologist','Psychiatrist','Other'].map(s => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
+                  onChange={v => setField('docSpec', v)}
+                  error={errors.docSpec}
+                />
                 <span className={`${styles.errorMsg} ${errors.docSpec ? styles.visible : ''}`}>Please select a specialization</span>
               </div>
               <div className={styles.formGroup}>
@@ -330,7 +325,7 @@ export default function OnboardingPage() {
               </div>
 
               <div className={styles.urlBox} onClick={() => window.open(`/book/${slug}`, '_blank')} title="Click to preview booking page">
-                qtoken.in/book/{slug}
+                myturnapp.online/book/{slug}
               </div>
               <div style={{fontSize:12,color:'var(--muted)',marginBottom:0}}>Click link to preview patient booking page ↗</div>
 
@@ -343,6 +338,76 @@ export default function OnboardingPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+const SPECIALTIES = [
+  'General Physician','Paediatrician','Gynaecologist','Dermatologist',
+  'Orthopaedic','ENT Specialist','Cardiologist','Neurologist',
+  'Dentist','Ophthalmologist','Psychiatrist','Other',
+];
+
+function SpecialtyDropdown({
+  value, onChange, error,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  error: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onOutsideClick(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onEsc(e: KeyboardEvent) { if (e.key === 'Escape') setOpen(false); }
+    document.addEventListener('mousedown', onOutsideClick);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onOutsideClick);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, []);
+
+  return (
+    <div ref={wrapperRef} className={styles.dropdownWrapper}>
+      <button
+        type="button"
+        className={[
+          styles.dropdownTrigger,
+          open  ? styles.open          : '',
+          !value ? styles.placeholderText : '',
+          error  ? styles.error          : '',
+        ].filter(Boolean).join(' ')}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span>{value || 'Select specialty'}</span>
+        <svg
+          className={styles.dropdownChevron}
+          width="12" height="8" viewBox="0 0 12 8"
+          fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+        >
+          <path d="M1 1l5 5 5-5"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div className={styles.dropdownMenu}>
+          {SPECIALTIES.map(s => (
+            <div
+              key={s}
+              className={`${styles.dropdownOption} ${value === s ? styles.selectedOpt : ''}`}
+              onClick={() => { onChange(s); setOpen(false); }}
+            >
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

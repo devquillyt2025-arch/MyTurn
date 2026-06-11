@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
+import { useTheme } from '../theme-provider';
+import { BookingQRCode } from '../../components/BookingQRCode';
 
 type DashPage = 'dashboard' | 'patients' | 'schedule' | 'analytics' | 'settings' | 'profile';
 type QStatus = 'done' | 'current' | 'waiting' | 'skipped';
@@ -70,6 +72,7 @@ function hlHtml(text: string, q: string) {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const [activePage, setActivePage] = useState<DashPage>('dashboard');
   const [queue, setQueue] = useState<QItem[]>(INITIAL_QUEUE);
   const [qrOpen, setQrOpen] = useState(false);
@@ -82,11 +85,18 @@ export default function DashboardPage() {
   const [patientFilter, setPatientFilter] = useState('');
   const [isFlipping, setIsFlipping] = useState(false);
   const [notifications, setNotifications] = useState({ smsBooking: true, smsReminder: true, noShow: false, dailySummary: true });
+  const [slotsOpen, setSlotsOpen] = useState(false);
+  const [slotConfig, setSlotConfig] = useState(SLOT_DATA.map(s => ({ ...s, blocked: false })));
+  const [newSlotTime, setNewSlotTime] = useState('');
+  const [addPatientOpen, setAddPatientOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newAge, setNewAge] = useState('');
+  const [newTime, setNewTime] = useState('');
 
   useEffect(() => {
-    document.title = 'QToken — Doctor Dashboard';
+    document.title = 'MyTurnApp';
     try {
-      const data = JSON.parse(localStorage.getItem('qtokenClinic') || 'null');
+      const data = JSON.parse(localStorage.getItem('myturnappClinic') || 'null');
       if (data) {
         if (data.clinic) setClinicName(data.clinic);
         if (data.slug) setSlug(data.slug);
@@ -98,6 +108,26 @@ export default function DashboardPage() {
         if (data.spec || data.qual) {
           setDoctorRole([data.qual, data.spec].filter(Boolean).join(' · '));
         }
+      }
+    } catch {}
+
+    try {
+      const bookings: { token: number; name: string; age: number; time: string; status: QStatus }[] =
+        JSON.parse(localStorage.getItem('myturnappBookings') || '[]');
+      if (bookings.length > 0) {
+        setQueue(prev => {
+          const existing = new Set(prev.map(p => p.token));
+          const incoming = bookings
+            .filter(b => !existing.has(b.token))
+            .map(b => ({
+              token: b.token,
+              name: b.name || 'Unknown Patient',
+              age: b.age || 0,
+              time: b.time || '—',
+              status: 'waiting' as QStatus,
+            }));
+          return [...prev, ...incoming];
+        });
       }
     } catch {}
   }, []);
@@ -119,7 +149,7 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setQrOpen(false); }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') { setQrOpen(false); setSlotsOpen(false); setAddPatientOpen(false); } }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
@@ -165,11 +195,6 @@ export default function DashboardPage() {
     });
   }
 
-  function copyLink() {
-    const url = `qtoken.in/book/${slug}`;
-    navigator.clipboard?.writeText(url).then(() => alert('Link copied!'));
-  }
-
   const weekMax = Math.max(...WEEK_DATA.map(d => d.count));
   const peakMax = Math.max(...PEAK_DATA.map(d => d.count));
 
@@ -189,6 +214,20 @@ export default function DashboardPage() {
     );
   }
 
+  function addPatient() {
+    if (!newName.trim()) return;
+    const nextToken = Math.max(...queue.map(p => p.token), 0) + 1;
+    const timeStr = newTime.trim() || '—';
+    const entry: QItem = { token: nextToken, name: newName.trim(), age: parseInt(newAge) || 0, time: timeStr, status: 'waiting' };
+    setQueue(prev => [...prev, entry]);
+    try {
+      const existing = JSON.parse(localStorage.getItem('myturnappBookings') || '[]');
+      localStorage.setItem('myturnappBookings', JSON.stringify([...existing, { token: nextToken, name: entry.name, age: entry.age, time: entry.time, status: 'waiting' }]));
+    } catch {}
+    setNewName(''); setNewAge(''); setNewTime('');
+    setAddPatientOpen(false);
+  }
+
   const filteredPatients = queue.filter(p =>
     p.name.toLowerCase().includes(patientFilter.toLowerCase()) ||
     String(p.token).includes(patientFilter)
@@ -198,11 +237,23 @@ export default function DashboardPage() {
     <div className={styles.page}>
       {/* Topbar */}
       <div className={styles.topbar}>
-        <div className={styles.logo}>QToken <span>/</span></div>
+        <div className={styles.logo}>MyTurnApp <span>/</span></div>
         <div className={styles.topbarSep}></div>
         <div className={styles.topbarClinic}>{clinicName}</div>
         <div className={styles.topbarRight}>
           <div className={styles.liveBadge}><div className={styles.liveDot}></div>Live</div>
+          <button className={styles.themeBtn} onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+            {theme === 'dark' ? (
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="8" cy="8" r="3.5"/>
+                <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.1 3.1l1.05 1.05M11.85 11.85l1.05 1.05M12.9 3.1l-1.05 1.05M4.15 11.85l-1.05 1.05"/>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M13.5 9.5A6 6 0 016.5 2.5 6.5 6.5 0 1013.5 9.5z"/>
+              </svg>
+            )}
+          </button>
           <div className={styles.topbarAvatar}>{doctorInitials}</div>
         </div>
       </div>
@@ -313,7 +364,7 @@ export default function DashboardPage() {
                 <div>
                   {queue.map(p => (
                     <div key={p.token} className={`${styles.queueItem} ${styles[p.status]}`}>
-                      <div className={styles.qToken}>{tok(p.token)}</div>
+                      <div className={styles.queueToken}>{tok(p.token)}</div>
                       <div className={styles.qInfo}>
                         <div className={styles.qName}>{p.name}</div>
                         <div className={styles.qMeta}>{p.age} yrs · {p.time}</div>
@@ -334,7 +385,7 @@ export default function DashboardPage() {
                   <span className={styles.cardTitle}>Slot fill</span>
                   <span className={styles.cardSub}>Today</span>
                 </div>
-                <SlotBars data={SLOT_DATA} />
+                <SlotBars data={slotConfig.filter(s => !s.blocked)} />
               </div>
 
               <div className={styles.card}>
@@ -342,13 +393,8 @@ export default function DashboardPage() {
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/></svg>
                   <span className={styles.cardTitle}>Booking QR</span>
                 </div>
-                <div style={{padding:20,textAlign:'center'}}>
-                  <DecoQR />
-                  <div style={{fontSize:13,color:'var(--muted)',marginBottom:12}}>Scan to book appointment</div>
-                  <div style={{display:'flex',gap:8}}>
-                    <button className={styles.actionBtn} style={{flex:1,justifyContent:'center',fontSize:12}} onClick={copyLink}>Copy link</button>
-                    <button className={`${styles.actionBtn} ${styles.primary}`} style={{flex:1,justifyContent:'center',fontSize:12}} onClick={() => alert('QR downloaded as PNG')}>Download</button>
-                  </div>
+                <div style={{padding:20}}>
+                  <BookingQRCode slug={slug} clinicName={clinicName} size={140} />
                 </div>
               </div>
             </div>
@@ -362,7 +408,7 @@ export default function DashboardPage() {
               <div className={styles.pageTitle}>Patients</div>
               <div className={styles.pageSub}>All registered patients · {queue.length} total today</div>
             </div>
-            <button className={`${styles.actionBtn} ${styles.primary}`}>
+            <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setAddPatientOpen(true)}>
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15"><path d="M8 2v12M2 8h12"/></svg>
               Add patient
             </button>
@@ -403,7 +449,7 @@ export default function DashboardPage() {
               <div className={styles.pageTitle}>Schedule</div>
               <div className={styles.pageSub}>Today · Slot capacity: 15</div>
             </div>
-            <button className={styles.actionBtn}>
+            <button className={styles.actionBtn} onClick={() => setSlotsOpen(true)}>
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15"><path d="M2.5 5.5h11M5.5 2.5v2M10.5 2.5v2M3 2.5h10a1 1 0 011 1v9a1 1 0 01-1 1H3a1 1 0 01-1-1v-9a1 1 0 011-1z"/></svg>
               Manage slots
             </button>
@@ -448,7 +494,7 @@ export default function DashboardPage() {
                   <span className={styles.cardTitle}>Slot fill</span>
                   <span className={styles.cardSub}>Today</span>
                 </div>
-                <SlotBars data={SLOT_DATA} />
+                <SlotBars data={slotConfig.filter(s => !s.blocked)} />
               </div>
             </div>
           </div>
@@ -564,13 +610,8 @@ export default function DashboardPage() {
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/></svg>
                   <span className={styles.cardTitle}>Booking QR</span>
                 </div>
-                <div style={{padding:24,textAlign:'center'}}>
-                  <DecoQR />
-                  <div style={{fontSize:12,color:'var(--muted)',marginBottom:14}}>qtoken.in/book/{slug}</div>
-                  <div style={{display:'flex',gap:8}}>
-                    <button className={styles.actionBtn} style={{flex:1,justifyContent:'center',fontSize:12}} onClick={copyLink}>Copy link</button>
-                    <button className={`${styles.actionBtn} ${styles.primary}`} style={{flex:1,justifyContent:'center',fontSize:12}} onClick={() => alert('QR downloaded as PNG')}>Download</button>
-                  </div>
+                <div style={{padding:24}}>
+                  <BookingQRCode slug={slug} clinicName={clinicName} size={160} />
                 </div>
               </div>
               <div className={styles.card}>
@@ -691,47 +732,109 @@ export default function DashboardPage() {
 
       </div>
 
+      {/* Manage Slots Modal */}
+      <div className={`${styles.modalOverlay} ${slotsOpen ? styles.open : ''}`} onClick={e => { if (e.target === e.currentTarget) setSlotsOpen(false); }}>
+        <div className={styles.modalBox} style={{width: 480, textAlign: 'left', maxHeight: '80vh', overflowY: 'auto'}}>
+          <button className={styles.modalClose} onClick={() => setSlotsOpen(false)}>✕</button>
+          <div className={styles.modalTitle}>Manage Slots</div>
+          <div style={{fontSize: 12, color: 'var(--muted)', marginBottom: 20}}>Adjust capacity and block time slots for today.</div>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 80px 70px 56px', gap: 8, fontSize: 11, color: 'var(--muted)', padding: '0 4px', marginBottom: 6}}>
+            <span>Time</span><span style={{textAlign:'center'}}>Capacity</span><span style={{textAlign:'center'}}>Booked</span><span style={{textAlign:'center'}}>Block</span>
+          </div>
+          {slotConfig.map((slot, i) => (
+            <div key={i} style={{display: 'grid', gridTemplateColumns: '1fr 80px 70px 56px', gap: 8, alignItems: 'center', padding: '10px 4px', borderTop: '1px solid var(--border2)', opacity: slot.blocked ? 0.45 : 1, transition: 'opacity 0.15s'}}>
+              <span style={{fontSize: 13}}>{slot.label}</span>
+              <input
+                type="number"
+                min={slot.booked}
+                max={99}
+                value={slot.total}
+                disabled={slot.blocked}
+                onChange={e => setSlotConfig(prev => prev.map((s, j) => j === i ? { ...s, total: Math.max(s.booked, Number(e.target.value) || s.booked) } : s))}
+                className={styles.settingsInput}
+                style={{width: '100%', textAlign: 'center', padding: '6px 8px'}}
+              />
+              <span style={{fontSize: 13, textAlign: 'center', color: 'var(--muted)'}}>{slot.booked}</span>
+              <div style={{display: 'flex', justifyContent: 'center'}}>
+                <div
+                  className={`${styles.toggle} ${slot.blocked ? styles.on : ''}`}
+                  style={slot.blocked ? {background: 'var(--red, #e5534b)'} : {}}
+                  onClick={() => setSlotConfig(prev => prev.map((s, j) => j === i ? { ...s, blocked: !s.blocked } : s))}
+                />
+              </div>
+            </div>
+          ))}
+          <div style={{display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border2)', alignItems: 'center'}}>
+            <input
+              type="text"
+              placeholder="Add slot, e.g. 3–4 PM"
+              value={newSlotTime}
+              onChange={e => setNewSlotTime(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && newSlotTime.trim()) {
+                  setSlotConfig(prev => [...prev, { label: newSlotTime.trim(), booked: 0, total: 4, blocked: false }]);
+                  setNewSlotTime('');
+                }
+              }}
+              className={styles.settingsInput}
+              style={{flex: 1}}
+            />
+            <button
+              className={styles.actionBtn}
+              onClick={() => {
+                if (!newSlotTime.trim()) return;
+                setSlotConfig(prev => [...prev, { label: newSlotTime.trim(), booked: 0, total: 4, blocked: false }]);
+                setNewSlotTime('');
+              }}
+            >+ Add</button>
+          </div>
+          <div style={{display: 'flex', gap: 8, marginTop: 20}}>
+            <button className={styles.actionBtn} style={{flex: 1, justifyContent: 'center'}} onClick={() => setSlotsOpen(false)}>Cancel</button>
+            <button className={`${styles.actionBtn} ${styles.primary}`} style={{flex: 1, justifyContent: 'center'}} onClick={() => setSlotsOpen(false)}>Save changes</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Add Patient Modal */}
+      <div className={`${styles.modalOverlay} ${addPatientOpen ? styles.open : ''}`} onClick={e => { if (e.target === e.currentTarget) setAddPatientOpen(false); }}>
+        <div className={styles.modalBox} style={{width: 420, textAlign: 'left'}}>
+          <button className={styles.modalClose} onClick={() => setAddPatientOpen(false)}>✕</button>
+          <div className={styles.modalTitle}>Add Patient</div>
+          <div style={{display: 'flex', flexDirection: 'column', gap: 14}}>
+            <div className={styles.settingsRow} style={{border: 'none', padding: 0}}>
+              <div><div className={styles.settingsRowLabel}>Full name <span style={{color:'var(--red)'}}>*</span></div></div>
+              <input className={styles.settingsInput} placeholder="e.g. Arjun Sharma" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPatient()} style={{width: 200}} autoFocus />
+            </div>
+            <div className={styles.settingsRow} style={{border: 'none', padding: 0}}>
+              <div><div className={styles.settingsRowLabel}>Age</div></div>
+              <input className={styles.settingsInput} type="number" placeholder="e.g. 35" min={1} max={110} value={newAge} onChange={e => setNewAge(e.target.value)} style={{width: 100, textAlign: 'center'}} />
+            </div>
+            <div className={styles.settingsRow} style={{border: 'none', padding: 0}}>
+              <div><div className={styles.settingsRowLabel}>Time slot</div><div className={styles.settingsRowSub}>Walk-in time or booked slot</div></div>
+              <input className={styles.settingsInput} placeholder="e.g. 11:30 AM" value={newTime} onChange={e => setNewTime(e.target.value)} style={{width: 140}} />
+            </div>
+          </div>
+          <div style={{marginTop: 8, padding: '10px 12px', background: 'var(--surface2)', borderRadius: 8, fontSize: 12, color: 'var(--muted)'}}>
+            Token <strong style={{color: 'var(--text)'}}>#{String(Math.max(...queue.map(p => p.token), 0) + 1).padStart(2,'0')}</strong> will be assigned · Status: Waiting
+          </div>
+          <div style={{display: 'flex', gap: 8, marginTop: 20}}>
+            <button className={styles.actionBtn} style={{flex: 1, justifyContent: 'center'}} onClick={() => { setAddPatientOpen(false); setNewName(''); setNewAge(''); setNewTime(''); }}>Cancel</button>
+            <button className={`${styles.actionBtn} ${styles.primary}`} style={{flex: 1, justifyContent: 'center'}} onClick={addPatient} disabled={!newName.trim()}>Add to queue</button>
+          </div>
+        </div>
+      </div>
+
       {/* QR Modal */}
       <div className={`${styles.modalOverlay} ${qrOpen ? styles.open : ''}`} onClick={e => { if (e.target === e.currentTarget) setQrOpen(false); }}>
         <div className={styles.modalBox}>
           <button className={styles.modalClose} onClick={() => setQrOpen(false)}>✕</button>
           <div className={styles.modalTitle}>Booking QR Code</div>
-          <DecoQR size={180} />
-          <div className={styles.modalUrl} onClick={copyLink}>qtoken.in/book/{slug}</div>
-          <div className={styles.modalUrlSub}>
-            Click to copy ·{' '}
+          <BookingQRCode slug={slug} clinicName={clinicName} size={180} />
+          <div className={styles.modalUrlSub} style={{marginTop:12}}>
             <span style={{color:'var(--teal)',cursor:'pointer'}} onClick={() => window.open(`/book/${slug}`, '_blank')}>Preview booking page ↗</span>
-          </div>
-          <div style={{display:'flex',gap:10,marginTop:4}}>
-            <button className={styles.actionBtn} style={{flex:1,justifyContent:'center'}} onClick={copyLink}>Copy link</button>
-            <button className={`${styles.actionBtn} ${styles.primary}`} style={{flex:1,justifyContent:'center'}} onClick={() => alert('QR downloaded as PNG')}>Download PNG</button>
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function DecoQR({ size = 140 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 140 140" style={{margin:'0 auto',display:'block',marginBottom:0}}>
-      <rect width="140" height="140" fill="var(--surface2)" rx="10"/>
-      <g fill="var(--teal)" opacity="0.9">
-        <rect x="12" y="12" width="28" height="28" rx="3"/>
-        <rect x="17" y="17" width="18" height="18" rx="2" fill="var(--surface2)"/>
-        <rect x="22" y="22" width="8" height="8" rx="1"/>
-        <rect x="100" y="12" width="28" height="28" rx="3"/>
-        <rect x="105" y="17" width="18" height="18" rx="2" fill="var(--surface2)"/>
-        <rect x="110" y="22" width="8" height="8" rx="1"/>
-        <rect x="12" y="100" width="28" height="28" rx="3"/>
-        <rect x="17" y="105" width="18" height="18" rx="2" fill="var(--surface2)"/>
-        <rect x="22" y="110" width="8" height="8" rx="1"/>
-        <rect x="50" y="12" width="5" height="5" rx="1"/><rect x="58" y="12" width="5" height="5" rx="1"/>
-        <rect x="66" y="12" width="5" height="5" rx="1"/><rect x="74" y="12" width="5" height="5" rx="1"/>
-        <rect x="50" y="50" width="5" height="5" rx="1"/><rect x="66" y="58" width="5" height="5" rx="1"/>
-        <rect x="82" y="66" width="5" height="5" rx="1"/><rect x="90" y="82" width="5" height="5" rx="1"/>
-        <rect x="50" y="100" width="5" height="5" rx="1"/><rect x="66" y="108" width="5" height="5" rx="1"/>
-      </g>
-    </svg>
   );
 }

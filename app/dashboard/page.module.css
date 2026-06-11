@@ -1,21 +1,4 @@
 .page {
-  --bg: #0F1117;
-  --surface: #1A1D27;
-  --surface2: #22263A;
-  --border: rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.12);
-  --text: #E8E6FF;
-  --muted: #7A7A9A;
-  --teal: #14D8C8;
-  --teal-dim: rgba(20,216,200,0.1);
-  --teal-border: rgba(20,216,200,0.25);
-  --amber: #F5A623;
-  --amber-dim: rgba(245,166,35,0.12);
-  --red: #FF5E5E;
-  --red-dim: rgba(255,94,94,0.1);
-  --green: #4DFFB4;
-  --green-dim: rgba(77,255,180,0.1);
-  --purple: #A78BFA;
   --radius: 14px;
   --radius-sm: 8px;
 
@@ -256,7 +239,7 @@
 .queueItem.current { background: var(--teal-dim); }
 .queueItem.done { opacity: 0.4; }
 
-.qToken {
+.queueToken {
   width: 36px; height: 36px;
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
@@ -266,8 +249,8 @@
   border: 1px solid var(--border2);
   flex-shrink: 0;
 }
-.queueItem.current .qToken { background: var(--teal-dim); border-color: var(--teal-border); color: var(--teal); }
-.queueItem.done .qToken { background: var(--green-dim); border-color: rgba(77,255,180,0.2); color: var(--green); }
+.queueItem.current .queueToken { background: var(--teal-dim); border-color: var(--teal-border); color: var(--teal); }
+.queueItem.done .queueToken { background: var(--green-dim); border-color: rgba(77,255,180,0.2); color: var(--green); }
 
 .qInfo { flex: 1; min-width: 0; }
 .qName { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -314,6 +297,7 @@
   flex: 1;
 }
 .searchBar input::placeholder { color: var(--muted); }
+:global(html[data-theme="dark"]) .searchBar input::placeholder { color: #94a3b8; }
 .patientRow {
   display: grid;
   grid-template-columns: 36px 1fr 80px 100px 100px;
@@ -405,6 +389,8 @@
   width: 140px;
 }
 .settingsInput:focus { border-color: var(--teal-border); }
+.settingsInput::placeholder { color: var(--muted); }
+:global(html[data-theme="dark"]) .settingsInput::placeholder { color: #94a3b8; }
 
 /* ─── Profile ─────────────────────────────────── */
 .profileHero {
@@ -480,3 +466,31 @@
 @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 .pagePanel { display: none; animation: fadeIn 0.25s ease forwards; }
 .pagePanel.active { display: block; }
+
+/* ── Theme toggle button ──────────────────────────── */
+.themeBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.themeBtn:hover { background: var(--surface2); color: var(--text); border-color: var(--teal-border); }
+.themeBtn svg { width: 16px; height: 16px; }
+
+/* ── Light-mode overrides for hardcoded dark values ── */
+:global(html[data-theme="light"]) .currentTokenCard {
+  background: linear-gradient(135deg, rgba(12,184,168,0.07) 0%, rgba(12,184,168,0.04) 100%);
+}
+
+:global(html[data-theme="light"]) .liveBadge {
+  background: rgba(22,163,107,0.1);
+  border-color: rgba(22,163,107,0.25);
+  color: var(--green);
+}
+
+:global(html[data-theme="light"]) .liveDot { background: var(--green); }

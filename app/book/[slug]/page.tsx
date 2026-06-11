@@ -79,15 +79,15 @@ export default function BookPage() {
 
   useEffect(() => {
     try {
-      const data = JSON.parse(localStorage.getItem('qtokenClinic') || 'null');
+      const data = JSON.parse(localStorage.getItem('myturnappClinic') || 'null');
       if (data) {
         setClinic(data);
-        if (data.name) document.title = `QToken — Book with ${data.name}`;
+        if (data.name) document.title = `MyTurnApp — Book with ${data.name}`;
       } else {
-        document.title = 'QToken — Book Appointment';
+        document.title = 'MyTurnApp — Book Appointment';
       }
     } catch {
-      document.title = 'QToken — Book Appointment';
+      document.title = 'MyTurnApp — Book Appointment';
     }
   }, []);
 
@@ -160,9 +160,25 @@ export default function BookPage() {
   function confirmBooking() {
     const dateStr = `${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]} — ${selectedSlot}`;
     setFinalDateTime(dateStr);
-    setFinalToken(tok(tokenNumber));
+
+    let assignedToken = tokenNumber;
+    try {
+      const existing: { token: number }[] = JSON.parse(localStorage.getItem('myturnappBookings') || '[]');
+      const maxToken = existing.length > 0 ? Math.max(...existing.map(b => b.token)) : 12;
+      assignedToken = maxToken + 1;
+      const newBooking = {
+        token: assignedToken,
+        name: patientName,
+        age: parseInt(patientAge) || 0,
+        time: selectedSlot ?? '',
+        status: 'waiting',
+      };
+      localStorage.setItem('myturnappBookings', JSON.stringify([...existing, newBooking]));
+    } catch {}
+
+    setFinalToken(tok(assignedToken));
     setStep('success');
-    animateCountUp(tokenNumber);
+    animateCountUp(assignedToken);
   }
 
   function animateCountUp(target: number) {

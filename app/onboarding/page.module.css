@@ -1,3 +1,13 @@
+:global(html[data-theme="dark"]) .page {
+  --cream: var(--bg);
+  --warm-white: var(--surface);
+  --charcoal: var(--text);
+  --ink: #C0BEDA;
+  --muted: var(--pt-muted);
+  --border: var(--pt-border);
+  --teal-light: rgba(13,115,119,0.2);
+}
+
 .page {
   --cream: #FAF7F2;
   --warm-white: #FFFEF9;
@@ -131,7 +141,7 @@
 }
 .formInput:focus, .formSelect:focus, .formTextarea:focus {
   border-color: var(--teal);
-  background: white;
+  background: var(--warm-white);
 }
 .formInput::placeholder, .formTextarea::placeholder { color: var(--muted); }
 .formTextarea { resize: vertical; min-height: 80px; }
@@ -230,7 +240,7 @@
   padding: 13px;
   border-radius: var(--radius);
   border: 1.5px solid var(--border);
-  background: white;
+  background: var(--warm-white);
   font-size: 14px;
   font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
   cursor: pointer;
@@ -261,6 +271,7 @@
   border-color: #D64045 !important;
   background: #FFF5F5;
 }
+
 .errorMsg {
   font-size: 12px;
   color: #D64045;
@@ -278,3 +289,102 @@
 
 .formMt { margin-top: 20px; }
 .formMt4 { margin-top: 4px; }
+
+/* ─── Custom specialty dropdown ──────────────── */
+.dropdownWrapper { position: relative; width: 100%; }
+
+.dropdownTrigger {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 14px;
+  background: var(--warm-white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14.5px;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  color: var(--charcoal);
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+  overflow: hidden;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropdownTrigger:hover,
+.dropdownTrigger:focus,
+.dropdownTrigger.open { border-color: var(--teal); }
+.dropdownTrigger.placeholderText { color: var(--muted); }
+.dropdownTrigger.error { border-color: #D64045 !important; }
+
+.dropdownChevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.18s ease;
+}
+.dropdownTrigger.open .dropdownChevron { transform: rotate(180deg); }
+
+.dropdownMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  z-index: 50;
+  background: var(--warm-white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  animation: ddOpen 0.12s ease;
+}
+
+@keyframes ddOpen {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dropdownOption {
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  color: var(--charcoal);
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+.dropdownOption:hover { background: var(--teal-light); color: var(--teal); }
+.dropdownOption.selectedOpt { background: var(--teal); color: #fff; }
+
+/* ─── Dark mode overrides ─────────────────────── */
+:global(html[data-theme="dark"]) .dropdownTrigger {
+  background: #1a1a2e;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+:global(html[data-theme="dark"]) .dropdownTrigger.placeholderText { color: #64748b; }
+:global(html[data-theme="dark"]) .dropdownTrigger:hover,
+:global(html[data-theme="dark"]) .dropdownTrigger:focus,
+:global(html[data-theme="dark"]) .dropdownTrigger.open { border-color: var(--teal); background: #1a1a2e; }
+
+:global(html[data-theme="dark"]) .dropdownMenu {
+  background: #1a1a2e;
+  border-color: #334155;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+:global(html[data-theme="dark"]) .dropdownOption { color: #e2e8f0; }
+:global(html[data-theme="dark"]) .dropdownOption:hover { background: #2d2d3d; color: #fff; }
+:global(html[data-theme="dark"]) .dropdownOption.selectedOpt { background: #0d9488; color: #fff; }
+
+:global(html[data-theme="dark"]) .formInput::placeholder,
+:global(html[data-theme="dark"]) .formTextarea::placeholder { color: #94a3b8; }
+
+:global(html[data-theme="dark"]) .formInput.error {
+  border-color: #e53535 !important;
+  background: rgba(229, 53, 53, 0.1);
+}
+
+:global(html[data-theme="dark"]) .secBtn {
+  background: #1a1a2e;
+  color: #e2e8f0;
+  border-color: #334155;
+}
