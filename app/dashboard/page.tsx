@@ -98,7 +98,7 @@ export default function DashboardPage() {
   const [slug, setSlug] = useState('');
   const [patientFilter, setPatientFilter] = useState('');
   const [isFlipping, setIsFlipping] = useState(false);
-  const [notifications, setNotifications] = useState({ smsBooking: true, smsReminder: true, noShow: false, dailySummary: true });
+
   const [slotsOpen, setSlotsOpen] = useState(false);
   const [slotConfig, setSlotConfig] = useState(SLOT_DATA.map(s => ({ ...s, blocked: false })));
   const [newSlotTime, setNewSlotTime] = useState('');
