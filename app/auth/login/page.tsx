@@ -20,6 +20,12 @@ export default function LoginPage() {
     if (params.get('error') === 'auth_callback_failed') {
       setError('Google sign-in failed. Please try again.');
     }
+    // Reset loading if the browser restores this page from bfcache
+    function onPageShow(e: PageTransitionEvent) {
+      if (e.persisted) setGoogleLoading(false);
+    }
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -48,7 +54,6 @@ export default function LoginPage() {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: { access_type: 'offline', prompt: 'consent' },
       },
     });
     if (authError) {
