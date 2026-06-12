@@ -15,20 +15,6 @@ type QStatus = 'done' | 'current' | 'waiting' | 'skipped';
 
 interface QItem { token: number; name: string; age: number; time: string; status: QStatus; }
 
-const INITIAL_QUEUE: QItem[] = [
-  { token: 1,  name: 'Ramesh Babu',    age: 55, time: '9:00 AM',  status: 'done' },
-  { token: 2,  name: 'Sunita Rao',     age: 28, time: '9:15 AM',  status: 'done' },
-  { token: 3,  name: 'Kiran Mehta',    age: 41, time: '9:30 AM',  status: 'done' },
-  { token: 4,  name: 'Priya Krishnan', age: 32, time: '9:45 AM',  status: 'current' },
-  { token: 5,  name: 'Vikram Sharma',  age: 19, time: '10:00 AM', status: 'waiting' },
-  { token: 6,  name: 'Ananya Pillai',  age: 60, time: '10:15 AM', status: 'waiting' },
-  { token: 7,  name: 'Deepak Nair',    age: 45, time: '10:30 AM', status: 'waiting' },
-  { token: 8,  name: 'Meghna Joshi',   age: 34, time: '10:45 AM', status: 'waiting' },
-  { token: 9,  name: 'Suresh Kumar',   age: 72, time: '11:00 AM', status: 'waiting' },
-  { token: 10, name: 'Lavanya S.',     age: 25, time: '11:15 AM', status: 'waiting' },
-  { token: 11, name: 'Ravi Teja',      age: 38, time: '11:30 AM', status: 'waiting' },
-  { token: 12, name: 'Nalini Iyer',    age: 50, time: '12:00 PM', status: 'waiting' },
-];
 
 const SLOT_DATA = [
   { label: '9–10 AM',  booked: 4, total: 4 },
@@ -77,18 +63,23 @@ const SPECIALTIES = [
 
 function tok(n: number) { return String(n).padStart(2, '0'); }
 
+function escHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function hlHtml(text: string, q: string) {
-  if (!q) return text;
-  const idx = text.toLowerCase().indexOf(q.toLowerCase());
-  if (idx === -1) return text;
-  return text.slice(0, idx) + `<mark class="hl">${text.slice(idx, idx + q.length)}</mark>` + text.slice(idx + q.length);
+  const safe = escHtml(text);
+  if (!q) return safe;
+  const idx = safe.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return safe;
+  return safe.slice(0, idx) + `<mark class="hl">${safe.slice(idx, idx + q.length)}</mark>` + safe.slice(idx + q.length);
 }
 
 export default function DashboardPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const [activePage, setActivePage] = useState<DashPage>('dashboard');
-  const [queue, setQueue] = useState<QItem[]>(INITIAL_QUEUE);
+  const [queue, setQueue] = useState<QItem[]>([]);
   const [qrOpen, setQrOpen] = useState(false);
   const [clock, setClock] = useState('');
   const [clinicName, setClinicName] = useState('');
@@ -325,13 +316,16 @@ export default function DashboardPage() {
     const entry: QItem = { token: nextToken, name: newName.trim(), age: parseInt(newAge) || 0, time: timeStr, status: 'waiting' };
     setQueue(prev => [...prev, entry]);
     if (clinicId) {
-      const supabase = createClient();
-      await supabase.from('bookings').insert({
-        clinic_id: clinicId,
-        patient_name: entry.name,
-        patient_phone: '',
-        token_number: nextToken,
-        status: 'waiting',
+      await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slot_id: null,
+          clinic_id: clinicId,
+          patient_name: entry.name,
+          patient_phone: '',
+          token_number: nextToken,
+        }),
       });
     }
     setNewName(''); setNewAge(''); setNewTime('');

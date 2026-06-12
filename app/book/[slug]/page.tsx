@@ -9,45 +9,60 @@ import toast from 'react-hot-toast';
 type BookStep = 1 | 2 | 3 | 'success';
 
 interface ClinicData {
-  name?: string; spec?: string; qual?: string; clinic?: string;
-  addr?: string; slotDuration?: string; days?: string[];
+  name?: string;
+  spec?: string;
+  qual?: string;
+  clinic?: string;
+  addr?: string;
+  slotDuration?: number;
+  maxPatients?: number;
+  days?: string[];
+  hours?: { mStart?: string; mEnd?: string; eStart?: string; eEnd?: string };
 }
 
-const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+interface SlotInfo {
+  time: string;       // 12h display: "09:00 AM"
+  time24: string;     // 24h DB key:  "09:00"
+  period: 'morning' | 'evening';
+  bookingCount: number;
+  full: boolean;
+  slotId: string | null;
+}
+
+const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-const SLOT_DATA: Record<number, { time: string; booked: boolean }[]> = {
-  0: [
-    { time: '09:00 AM', booked: true }, { time: '09:15 AM', booked: true },
-    { time: '09:30 AM', booked: true }, { time: '09:45 AM', booked: false },
-    { time: '10:00 AM', booked: false }, { time: '10:15 AM', booked: false },
-    { time: '10:30 AM', booked: false }, { time: '10:45 AM', booked: false },
-    { time: '11:00 AM', booked: false }, { time: '11:15 AM', booked: true },
-    { time: '11:30 AM', booked: false }, { time: '12:00 PM', booked: false },
-  ],
-  1: [
-    { time: '09:00 AM', booked: false }, { time: '09:15 AM', booked: false },
-    { time: '09:30 AM', booked: false }, { time: '09:45 AM', booked: false },
-    { time: '10:00 AM', booked: false }, { time: '10:15 AM', booked: true },
-    { time: '10:30 AM', booked: false }, { time: '11:00 AM', booked: false },
-  ],
-  2: [
-    { time: '09:00 AM', booked: false }, { time: '09:30 AM', booked: false },
-    { time: '10:00 AM', booked: false }, { time: '10:30 AM', booked: false },
-    { time: '11:00 AM', booked: true },  { time: '11:30 AM', booked: false },
-  ],
-  3: [],
-  4: [
-    { time: '09:00 AM', booked: false }, { time: '09:30 AM', booked: false },
-    { time: '10:00 AM', booked: false }, { time: '11:00 AM', booked: false },
-  ],
-  5: [
-    { time: '09:00 AM', booked: false }, { time: '09:30 AM', booked: false },
-    { time: '10:00 AM', booked: false },
-  ],
-};
-
 function tok(n: number) { return `#${String(n).padStart(2, '0')}`; }
+
+function to12h(time24: string): string {
+  const [h, m] = time24.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hh = h % 12 || 12;
+  return `${hh}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function generateTimeSlots(start: string, end: string, durationMin: number): string[] {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const startTotal = sh * 60 + sm;
+  const endTotal = eh * 60 + em;
+  const times: string[] = [];
+  for (let t = startTotal; t < endTotal; t += durationMin) {
+    const h = Math.floor(t / 60);
+    const mn = t % 60;
+    times.push(`${String(h).padStart(2, '0')}:${String(mn).padStart(2, '0')}`);
+  }
+  return times;
+}
+
+function isWorkingDay(date: Date, workingDays: string[]): boolean {
+  return workingDays.includes(DAY_ABBR[date.getDay()]);
+}
+
+// Build YYYY-MM-DD from local time (toISOString is UTC, wrong in IST)
+function toLocalISODate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 export default function BookPage() {
   const params = useParams();
@@ -55,9 +70,10 @@ export default function BookPage() {
   const [step, setStep] = useState<BookStep>(1);
   const [clinic, setClinic] = useState<ClinicData>({});
   const [clinicId, setClinicId] = useState<string>('');
-  const [selectedDateIdx, setSelectedDateIdx] = useState(0);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedSlotTime24, setSelectedSlotTime24] = useState<string | null>(null);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [tokenNumber, setTokenNumber] = useState(0);
   const [patientName, setPatientName] = useState('');
   const [patientAge, setPatientAge] = useState('');
@@ -75,13 +91,80 @@ export default function BookPage() {
   const [isCounting, setIsCounting] = useState(false);
   const [finalDateTime, setFinalDateTime] = useState('');
   const [finalToken, setFinalToken] = useState('');
+  const [clinicNotFound, setClinicNotFound] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [realSlots, setRealSlots] = useState<SlotInfo[]>([]);
+  const [noSchedule, setNoSchedule] = useState(false);
   const otpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const dates = Array.from({ length: 6 }, (_, i) => {
+  const dates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i);
     return d;
   });
+
+  async function loadSlotsForDate(date: Date, cId: string, clinicData: ClinicData) {
+    setSlotsLoading(true);
+    setRealSlots([]);
+
+    const hours = clinicData.hours;
+    const duration = clinicData.slotDuration || 15;
+
+    if (!hours?.mStart || !hours?.mEnd) {
+      setNoSchedule(true);
+      setSlotsLoading(false);
+      return;
+    }
+    setNoSchedule(false);
+
+    const morningTimes = generateTimeSlots(hours.mStart, hours.mEnd, duration);
+    const eveningTimes = (hours.eStart && hours.eEnd)
+      ? generateTimeSlots(hours.eStart, hours.eEnd, duration)
+      : [];
+    const allTimes = [...morningTimes, ...eveningTimes];
+
+    const isoDate = toLocalISODate(date);
+
+    // Fetch slot records for this clinic + date
+    const { data: dbSlots } = await supabase
+      .from('slots')
+      .select('id, time, max_bookings')
+      .eq('clinic_id', cId)
+      .eq('date', isoDate);
+
+    // Fetch booking counts per slot
+    const slotIds = (dbSlots || []).map(s => s.id);
+    const bookingCounts: Record<string, number> = {};
+    if (slotIds.length > 0) {
+      const { data: dbBookings } = await supabase
+        .from('bookings')
+        .select('slot_id')
+        .in('slot_id', slotIds);
+      (dbBookings || []).forEach(b => {
+        if (b.slot_id) bookingCounts[b.slot_id] = (bookingCounts[b.slot_id] || 0) + 1;
+      });
+    }
+
+    const slotMap: Record<string, { id: string; max_bookings: number }> = {};
+    (dbSlots || []).forEach(s => { slotMap[s.time] = { id: s.id, max_bookings: s.max_bookings }; });
+
+    const result: SlotInfo[] = allTimes.map(t24 => {
+      const dbSlot = slotMap[t24];
+      const bookingCount = dbSlot ? (bookingCounts[dbSlot.id] || 0) : 0;
+      const maxBookings = dbSlot?.max_bookings ?? 1;
+      return {
+        time: to12h(t24),
+        time24: t24,
+        period: morningTimes.includes(t24) ? 'morning' : 'evening',
+        bookingCount,
+        full: bookingCount >= maxBookings,
+        slotId: dbSlot?.id ?? null,
+      };
+    });
+
+    setRealSlots(result);
+    setSlotsLoading(false);
+  }
 
   useEffect(() => {
     if (!urlSlug) return;
@@ -92,38 +175,57 @@ export default function BookPage() {
       .single()
       .then(({ data }) => {
         if (data) {
-          setClinicId(data.id);
-          setClinic({
+          const clinicData: ClinicData = {
             name: data.doctor_name,
             spec: data.spec,
             qual: data.qual,
             clinic: data.name,
             addr: data.address,
-            slotDuration: String(data.slot_duration),
-            days: data.days,
-          });
+            slotDuration: data.slot_duration || 15,
+            maxPatients: data.max_patients || 30,
+            days: data.days || [],
+            hours: data.hours || {},
+          };
+          setClinicId(data.id);
+          setClinic(clinicData);
           if (data.doctor_name) document.title = `MyTurnApp — Book with ${data.doctor_name}`;
+
+          // Select the first working day in the next 7 days
+          const workingDays: string[] = data.days || [];
+          let firstDate = new Date();
+          for (let i = 0; i < 7; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() + i);
+            if (workingDays.includes(DAY_ABBR[d.getDay()])) {
+              firstDate = d;
+              break;
+            }
+          }
+          setSelectedDate(firstDate);
+          loadSlotsForDate(firstDate, data.id, clinicData);
         } else {
-          document.title = 'MyTurnApp — Book Appointment';
+          setClinicNotFound(true);
         }
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlSlug]);
 
-  function selectDate(idx: number, date: Date) {
-    setSelectedDateIdx(idx);
+  function selectDate(date: Date, working: boolean) {
+    if (!working) return;
     setSelectedDate(date);
     setSelectedSlot(null);
+    setSelectedSlotTime24(null);
+    setSelectedSlotId(null);
     setTokenNumber(0);
+    if (clinicId) loadSlotsForDate(date, clinicId, clinic);
   }
 
-  function selectSlot(time: string, slotIdx: number, dayIdx: number) {
-    const slots = SLOT_DATA[dayIdx] || [];
-    if (slots[slotIdx]?.booked) return;
-    setSelectedSlot(time);
-    const bookedCount = slots.filter(s => s.booked).length;
-    const freeSlots = slots.filter(s => !s.booked);
-    const pos = freeSlots.findIndex(s => s.time === time) + 1;
-    setTokenNumber(bookedCount + pos);
+  function selectSlot(slot: SlotInfo) {
+    if (slot.full) return;
+    setSelectedSlot(slot.time);
+    setSelectedSlotTime24(slot.time24);
+    setSelectedSlotId(slot.slotId);
+    setTokenNumber(slot.bookingCount + 1);
   }
 
   function sendOTP() {
@@ -181,17 +283,20 @@ export default function BookPage() {
 
     let assignedToken = tokenNumber;
     try {
-      const isoDate = selectedDate.toISOString().split('T')[0];
+      const isoDate = toLocalISODate(selectedDate);
+      const slotTime = selectedSlotTime24 ?? selectedSlot ?? '';
 
+      // Upsert the slot record (creates it if it doesn't exist yet)
       const { data: slot } = await supabase
         .from('slots')
         .upsert(
-          { clinic_id: clinicId, date: isoDate, time: selectedSlot, max_bookings: 1 },
+          { clinic_id: clinicId, date: isoDate, time: slotTime, max_bookings: 1 },
           { onConflict: 'clinic_id,date,time' }
         )
         .select()
         .single();
 
+      // Server-side token assignment: highest existing token + 1
       const { data: maxRow } = await supabase
         .from('bookings')
         .select('token_number')
@@ -207,7 +312,7 @@ export default function BookPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            slot_id: slot?.id ?? null,
+            slot_id: selectedSlotId ?? slot?.id ?? null,
             clinic_id: clinicId,
             patient_name: patientName,
             patient_phone: patientPhone,
@@ -224,9 +329,7 @@ export default function BookPage() {
         try {
           const body = await res.json();
           if (body?.error) message = body.error;
-        } catch {
-          // response body was not JSON
-        }
+        } catch {}
         toast.error(message);
         return;
       }
@@ -275,11 +378,28 @@ export default function BookPage() {
     else if (step === 3) confirmBooking();
   }
 
+  if (clinicNotFound) {
+    return (
+      <div className={styles.page} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 16, padding: 24, textAlign: 'center' }}>
+        <div style={{ fontSize: 56, fontWeight: 700, color: 'var(--muted)' }}>404</div>
+        <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Clinic not found</div>
+        <div style={{ fontSize: 14, color: 'var(--muted)', maxWidth: 320 }}>
+          The booking link you followed does not match any registered clinic.
+        </div>
+        <a href="/" style={{ marginTop: 8, color: 'var(--teal)', fontSize: 14, textDecoration: 'none', fontWeight: 500 }}>
+          ← Back to MyTurnApp
+        </a>
+      </div>
+    );
+  }
+
   const hdrSpec = [clinic.spec, clinic.qual].filter(Boolean).join(' · ') || 'General Physician · MBBS, MD';
   const hdrDays = clinic.days && clinic.days.length ? `${clinic.days[0]} – ${clinic.days[clinic.days.length - 1]}` : 'Mon – Sat';
-  const hdrAddr = clinic.addr ? (clinic.addr.split(',').pop()?.trim() || clinic.addr) : 'Koramangala';
-  const confirmDoctor = clinic.name || 'Dr. Meera Nair';
-  const successClinic = [clinic.clinic, clinic.addr?.split(',').pop()?.trim()].filter(Boolean).join(', ') || 'Nair Healthcare, Koramangala';
+  const hdrAddr = clinic.addr ? (clinic.addr.split(',').pop()?.trim() || clinic.addr) : '';
+  const confirmDoctor = clinic.name || '';
+  const successClinic = [clinic.clinic, clinic.addr?.split(',').pop()?.trim()].filter(Boolean).join(', ');
+  const slotDuration = clinic.slotDuration || 15;
+  const isToday = (d: Date) => d.toDateString() === dates[0].toDateString();
 
   return (
     <div className={styles.page}>
@@ -289,14 +409,14 @@ export default function BookPage() {
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M8 1.5a4 4 0 100 8 4 4 0 000-8z"/><path d="M2 14.5c0-2.21 2.686-4 6-4s6 1.79 6 4"/>
           </svg>
-          <span>{clinic.clinic || 'Nair Healthcare Clinic'}</span>
+          <span>{clinic.clinic}</span>
         </div>
-        <div className={styles.doctorName}>{clinic.name || 'Dr. Meera Nair'}</div>
+        <div className={styles.doctorName}>{clinic.name}</div>
         <div className={styles.doctorSpec}>{hdrSpec}</div>
         <div className={styles.headerMeta}>
           <div className={styles.metaPill}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 1.5"/></svg>
-            Slot: {clinic.slotDuration || '15'} min
+            Slot: {slotDuration} min
           </div>
           <div className={styles.metaPill}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2.5 5.5h11M5.5 2.5v2M10.5 2.5v2M3 2.5h10a1 1 0 011 1v9a1 1 0 01-1 1H3a1 1 0 01-1-1v-9a1 1 0 011-1z"/></svg>
@@ -326,16 +446,20 @@ export default function BookPage() {
               <div className={styles.section}>
                 <div className={styles.sectionLabel}>Select date</div>
                 <div className={styles.dateStrip}>
-                  {dates.map((d, i) => (
-                    <div
-                      key={i}
-                      className={`${styles.dateChip} ${i === 0 ? styles.today : ''} ${selectedDateIdx === i ? styles.active : ''}`}
-                      onClick={() => selectDate(i, d)}
-                    >
-                      <span className={styles.dayName}>{i === 0 ? 'Today' : DAYS_SHORT[d.getDay()]}</span>
-                      <span className={styles.dayNum}>{d.getDate()}</span>
-                    </div>
-                  ))}
+                  {dates.map((d, i) => {
+                    const working = isWorkingDay(d, clinic.days || []);
+                    const active = selectedDate.toDateString() === d.toDateString();
+                    return (
+                      <div
+                        key={i}
+                        className={`${styles.dateChip} ${isToday(d) ? styles.today : ''} ${active ? styles.active : ''} ${!working ? styles.closed : ''}`}
+                        onClick={() => selectDate(d, working)}
+                      >
+                        <span className={styles.dayName}>{isToday(d) ? 'Today' : DAY_ABBR[d.getDay()]}</span>
+                        <span className={styles.dayNum}>{d.getDate()}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -343,20 +467,34 @@ export default function BookPage() {
 
               <div className={styles.section}>
                 <div className={styles.sectionLabel}>
-                  Available slots — {selectedDateIdx === 0 ? 'Today' : `${DAYS_SHORT[selectedDate.getDay()]}, ${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]}`}
+                  Available slots — {isToday(selectedDate) ? 'Today' : `${DAY_ABBR[selectedDate.getDay()]}, ${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]}`}
                 </div>
-                {(SLOT_DATA[selectedDateIdx] || []).length === 0 ? (
-                  <div style={{textAlign:'center',padding:'32px 0',color:'var(--muted)',fontSize:14}}>No slots available this day</div>
+                {slotsLoading ? (
+                  <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--muted)', fontSize: 14 }}>
+                    Loading available slots…
+                  </div>
+                ) : noSchedule ? (
+                  <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--muted)', fontSize: 14 }}>
+                    This clinic hasn&apos;t set up their schedule yet
+                  </div>
+                ) : !isWorkingDay(selectedDate, clinic.days || []) ? (
+                  <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--muted)', fontSize: 14 }}>
+                    Clinic is closed on this day
+                  </div>
+                ) : realSlots.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--muted)', fontSize: 14 }}>
+                    No slots available this day
+                  </div>
                 ) : (
                   <div className={styles.slotsGrid}>
-                    {(SLOT_DATA[selectedDateIdx] || []).map((s, i) => (
+                    {realSlots.map(s => (
                       <div
-                        key={s.time}
-                        className={`${styles.slotChip} ${s.booked ? styles.booked : ''} ${selectedSlot === s.time ? styles.selected : ''}`}
-                        onClick={() => selectSlot(s.time, i, selectedDateIdx)}
+                        key={s.time24}
+                        className={`${styles.slotChip} ${s.full ? styles.booked : ''} ${selectedSlot === s.time ? styles.selected : ''}`}
+                        onClick={() => selectSlot(s)}
                       >
                         <span className={styles.slotTime}>{s.time}</span>
-                        <span className={styles.slotAvail}>{s.booked ? 'Full' : 'Available'}</span>
+                        <span className={styles.slotAvail}>{s.full ? 'Full' : 'Available'}</span>
                       </div>
                     ))}
                   </div>
@@ -414,7 +552,7 @@ export default function BookPage() {
               <div className={styles.formCard} style={{textAlign:'center',padding:'28px 20px'}}>
                 <div style={{fontSize:13,color:'var(--muted)',marginBottom:4}}>Your token number</div>
                 <span className={styles.tokenBig}>{tok(tokenNumber)}</span>
-                <div className={styles.tokenLabel}>Estimated wait: ~{(tokenNumber - 1) * 15} min</div>
+                <div className={styles.tokenLabel}>Estimated wait: ~{(tokenNumber - 1) * slotDuration} min</div>
               </div>
               <div className={styles.formCard} style={{marginTop:14}}>
                 {[

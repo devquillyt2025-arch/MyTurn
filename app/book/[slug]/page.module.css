@@ -173,6 +173,7 @@
   font-family: var(--font-dm-serif, 'DM Serif Display'), serif;
 }
 .dateChip.active .dayNum { color: #fff; }
+.dateChip.closed { opacity: 0.35; cursor: default; pointer-events: none; }
 
 /* ─── Slot grid ─────────────────────────────────────── */
 .slotsGrid {
