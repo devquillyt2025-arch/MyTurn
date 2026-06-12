@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 import { createClient } from '@/lib/supabase/client';
 import { BookingQRCode } from '@/components/BookingQRCode';
-import toast from 'react-hot-toast';
 
 type Step = 1 | 2 | 3;
 
