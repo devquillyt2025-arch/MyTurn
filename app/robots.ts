@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/dashboard', '/onboarding'],
+      disallow: ['/dashboard'],
     },
     sitemap: 'https://myturnapp.online/sitemap.xml',
   };

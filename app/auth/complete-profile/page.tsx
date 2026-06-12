@@ -62,7 +62,7 @@ export default function CompleteProfilePage() {
       return;
     }
 
-    router.push('/onboarding');
+    router.push('/dashboard');
   }
 
   if (checking) {
@@ -138,7 +138,7 @@ export default function CompleteProfilePage() {
           {error && <p className={styles.errorMsg}>{error}</p>}
 
           <button className={styles.btn} type="submit" disabled={loading}>
-            {loading ? 'Saving…' : 'Continue to clinic setup →'}
+            {loading ? 'Saving…' : 'Continue to dashboard →'}
           </button>
         </form>
       </div>

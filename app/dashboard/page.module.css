@@ -570,3 +570,176 @@
 }
 
 :global(html[data-theme="light"]) .liveDot { background: var(--green); }
+
+/* ─── Setup banner ──────────────────────────────── */
+.setupBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--teal-dim);
+  border: 1px solid var(--teal-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 18px;
+  margin-bottom: 24px;
+  font-size: 13px;
+  color: var(--teal);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.setupBanner:hover { opacity: 0.85; }
+
+/* ─── Settings tabs ─────────────────────────────── */
+.settingsTabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.settingsTabBtn {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.settingsTabBtn:hover { color: var(--text); }
+.settingsTabBtn.activeTab {
+  color: var(--teal);
+  border-bottom-color: var(--teal);
+}
+
+/* ─── Settings form ─────────────────────────────── */
+.settingsFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.formLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.formInput {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  outline: none;
+  width: 100%;
+}
+.formInput:focus { border-color: var(--teal-border); }
+.formInput::placeholder { color: var(--muted); }
+:global(html[data-theme="dark"]) .formInput::placeholder { color: #94a3b8; }
+
+/* ─── Day / duration chips ──────────────────────── */
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+}
+.chip:hover { border-color: var(--teal-border); color: var(--text); }
+.chip.chipActive {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+
+/* ─── Time range row ────────────────────────────── */
+.timeRangeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.timeRangeRow span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ─── Settings save row ─────────────────────────── */
+.settingsSaveRow {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ─── Schedule two-column layout ────────────────── */
+.scheduleLayout {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 24px;
+  align-items: start;
+}
+.scheduleLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.scheduleRight {}
+.qrSticky {
+  position: sticky;
+  top: 28px;
+}
+
+/* ─── QR side buttons ────────────────────────────── */
+.qrSideBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.qrSideBtn:hover { background: var(--surface2); border-color: var(--teal-border); }
+.qrSideBtnPrimary {
+  background: var(--teal);
+  color: var(--bg);
+  border-color: transparent;
+}
+.qrSideBtnPrimary:hover { opacity: 0.9; background: var(--teal); }
+
+/* ─── Responsive: stack on mobile ───────────────── */
+@media (max-width: 768px) {
+  .scheduleLayout {
+    grid-template-columns: 1fr;
+  }
+  .scheduleLeft { order: 1; }
+  .scheduleRight { order: 2; }
+  .qrSticky { position: static; }
+}

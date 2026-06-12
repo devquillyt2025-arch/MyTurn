@@ -126,7 +126,7 @@ export default function RegisterPage() {
       return;
     }
 
-    router.push('/onboarding');
+    router.push('/dashboard');
     router.refresh();
   }
 

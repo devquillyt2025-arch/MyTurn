@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styles from './page.module.css';
 import { useTheme } from '../theme-provider';
 import { BookingQRCode } from '../../components/BookingQRCode';
+import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 
@@ -64,6 +65,16 @@ const PEAK_DATA = [
   { label: '2–3 PM', count: 9 }, { label: '3–4 PM', count: 11 }, { label: '4–5 PM', count: 7 },
 ];
 
+const ALL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const SPECIALTIES = [
+  'General Physician', 'Cardiologist', 'Dermatologist', 'Pediatrician',
+  'Orthopaedic Surgeon', 'Gynaecologist', 'ENT Specialist', 'Ophthalmologist',
+  'Neurologist', 'Gastroenterologist', 'Psychiatrist', 'Dentist',
+  'Oncologist', 'Endocrinologist', 'Pulmonologist', 'Urologist',
+  'Nephrologist', 'Rheumatologist', 'Other',
+];
+
 function tok(n: number) { return String(n).padStart(2, '0'); }
 
 function hlHtml(text: string, q: string) {
@@ -80,11 +91,11 @@ export default function DashboardPage() {
   const [queue, setQueue] = useState<QItem[]>(INITIAL_QUEUE);
   const [qrOpen, setQrOpen] = useState(false);
   const [clock, setClock] = useState('');
-  const [clinicName, setClinicName] = useState('Nair Healthcare Clinic');
-  const [doctorInitials, setDoctorInitials] = useState('MN');
-  const [doctorName, setDoctorName] = useState('Dr. Meera Nair');
-  const [doctorRole, setDoctorRole] = useState('MBBS, MD · General Physician');
-  const [slug, setSlug] = useState('dr-meera-nair');
+  const [clinicName, setClinicName] = useState('');
+  const [doctorInitials, setDoctorInitials] = useState('');
+  const [doctorName, setDoctorName] = useState('');
+  const [doctorRole, setDoctorRole] = useState('');
+  const [slug, setSlug] = useState('');
   const [patientFilter, setPatientFilter] = useState('');
   const [isFlipping, setIsFlipping] = useState(false);
   const [notifications, setNotifications] = useState({ smsBooking: true, smsReminder: true, noShow: false, dailySummary: true });
@@ -99,6 +110,28 @@ export default function DashboardPage() {
   const [clinicId, setClinicId] = useState('');
   const [doctorPlan, setDoctorPlan] = useState('free');
   const [todayBookingCount, setTodayBookingCount] = useState(0);
+
+  // Settings tab
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'schedule'>('profile');
+  // Clinic profile edit fields
+  const [editDocName, setEditDocName] = useState('');
+  const [editSpec, setEditSpec] = useState('');
+  const [editClinicName, setEditClinicName] = useState('');
+  const [editQual, setEditQual] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editFee, setEditFee] = useState('');
+  // Schedule edit fields
+  const [editDays, setEditDays] = useState<string[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+  const [editMorningStart, setEditMorningStart] = useState('09:00');
+  const [editMorningEnd, setEditMorningEnd] = useState('13:00');
+  const [editEveningStart, setEditEveningStart] = useState('17:00');
+  const [editEveningEnd, setEditEveningEnd] = useState('20:00');
+  const [editSlotDuration, setEditSlotDuration] = useState('15');
+  const [editMaxPatients, setEditMaxPatients] = useState('30');
+  const [saving, setSaving] = useState(false);
+  const [qrCopied, setQrCopied] = useState(false);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     document.title = 'MyTurnApp';
@@ -125,6 +158,23 @@ export default function DashboardPage() {
           if (data.spec || data.qual) {
             setDoctorRole([data.qual, data.spec].filter(Boolean).join(' · '));
           }
+
+          setEditDocName(data.doctor_name || '');
+          setEditSpec(data.spec || '');
+          setEditQual(data.qual || '');
+          setEditClinicName(data.name || '');
+          setEditAddress(data.address || '');
+          setEditPhone(data.phone || '');
+          setEditFee(data.fee ? String(data.fee) : '');
+          if (Array.isArray(data.days) && data.days.length) setEditDays(data.days);
+          if (data.hours) {
+            if (data.hours.mStart) setEditMorningStart(data.hours.mStart);
+            if (data.hours.mEnd) setEditMorningEnd(data.hours.mEnd);
+            if (data.hours.eStart) setEditEveningStart(data.hours.eStart);
+            if (data.hours.eEnd) setEditEveningEnd(data.hours.eEnd);
+          }
+          if (data.slot_duration) setEditSlotDuration(String(data.slot_duration));
+          if (data.max_patients) setEditMaxPatients(String(data.max_patients));
 
           supabase
             .from('doctors')
@@ -299,13 +349,106 @@ export default function DashboardPage() {
     String(p.token).includes(patientFilter)
   );
 
+  const bookingUrl = `${process.env.NEXT_PUBLIC_BOOKING_BASE_URL ?? 'https://myturnapp.online'}/book/${slug}`;
+
+  function copyQrLink() {
+    navigator.clipboard.writeText(bookingUrl).then(() => {
+      setQrCopied(true);
+      setTimeout(() => setQrCopied(false), 2000);
+    });
+  }
+
+  function downloadQrPng() {
+    const canvas = qrCanvasRef.current;
+    if (!canvas) return;
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slug || 'booking'}-qr.png`;
+    a.click();
+  }
+
+  async function saveClinicProfile() {
+    if (!editDocName.trim() || !editClinicName.trim()) {
+      toast.error('Doctor name and clinic name are required.');
+      return;
+    }
+    setSaving(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaving(false); return; }
+
+    const newSlug = slug || editDocName.toLowerCase()
+      .replace(/^dr\.?\s*/i, '').trim()
+      .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'clinic';
+
+    const payload = {
+      user_id: user.id,
+      name: editClinicName.trim(),
+      doctor_name: editDocName.trim(),
+      phone: editPhone.trim(),
+      address: editAddress.trim(),
+      slug: newSlug,
+      spec: editSpec.trim(),
+      qual: editQual.trim(),
+      fee: editFee.trim(),
+    };
+
+    let err: { message: string } | null = null;
+    if (clinicId) {
+      const { error } = await supabase.from('clinics').update(payload).eq('id', clinicId);
+      err = error;
+    } else {
+      const { data: newClinic, error } = await supabase.from('clinics').insert(payload).select('id').single();
+      err = error;
+      if (newClinic) setClinicId(newClinic.id);
+    }
+
+    if (err) {
+      toast.error(err.message);
+    } else {
+      setSlug(newSlug);
+      setClinicName(editClinicName.trim());
+      setDoctorName(editDocName.trim());
+      const ini = editDocName.replace(/^dr\.?\s*/i, '').trim().split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+      setDoctorInitials(ini);
+      if (editSpec || editQual) setDoctorRole([editQual, editSpec].filter(Boolean).join(' · '));
+      toast.success('Clinic profile saved');
+    }
+    setSaving(false);
+  }
+
+  async function saveSchedule() {
+    if (!clinicId) {
+      toast.error('Save your clinic profile first.');
+      return;
+    }
+    setSaving(true);
+    const supabase = createClient();
+    const { error } = await supabase.from('clinics').update({
+      days: editDays,
+      hours: {
+        mStart: editMorningStart,
+        mEnd: editMorningEnd,
+        eStart: editEveningStart,
+        eEnd: editEveningEnd,
+      },
+      slot_duration: Number(editSlotDuration),
+      max_patients: Number(editMaxPatients),
+    }).eq('id', clinicId);
+
+    if (error) toast.error(error.message);
+    else toast.success('Schedule saved');
+    setSaving(false);
+  }
+
   return (
     <div className={styles.page}>
       {/* Topbar */}
       <div className={styles.topbar}>
         <div className={styles.logo}>MyTurnApp <span>/</span></div>
         <div className={styles.topbarSep}></div>
-        <div className={styles.topbarClinic}>{clinicName}</div>
+        <div className={styles.topbarClinic}>{clinicName || 'Set up your clinic'}</div>
         <div className={styles.topbarRight}>
           <div className={styles.liveBadge}><div className={styles.liveDot}></div>Live</div>
           {doctorPlan !== 'pro' && (
@@ -410,6 +553,12 @@ export default function DashboardPage() {
                 </div>
               </div>
               <a href="#" className={styles.upgradeCta}>Upgrade to Basic for unlimited bookings →</a>
+            </div>
+          )}
+
+          {!slug && (
+            <div className={styles.setupBanner} onClick={() => setActivePage('settings')}>
+              Your clinic isn&apos;t set up yet. Complete setup to get your QR code →
             </div>
           )}
 
@@ -692,75 +841,209 @@ export default function DashboardPage() {
           <div className={styles.pageHeader}>
             <div>
               <div className={styles.pageTitle}>QR &amp; Settings</div>
-              <div className={styles.pageSub}>Clinic configuration and notifications</div>
+              <div className={styles.pageSub}>Clinic profile, schedule, and QR code</div>
             </div>
-            <div style={{display:'flex',gap:10}}>
+            {slug && (
               <button className={styles.actionBtn} onClick={() => window.open(`/book/${slug}`, '_blank')}>
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15"><path d="M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3M9 2h5v5M14 2l-7 7"/></svg>
                 Preview booking page ↗
               </button>
-              <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => toast.success('Settings saved')}>Save changes</button>
-            </div>
+            )}
           </div>
-          <div className={styles.settingsGrid}>
-            <div style={{display:'flex',flexDirection:'column',gap:20}}>
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/></svg>
-                  <span className={styles.cardTitle}>Booking QR</span>
-                </div>
-                <div style={{padding:24}}>
-                  <BookingQRCode slug={slug} clinicName={clinicName} size={160} />
-                </div>
-              </div>
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2.5 5.5h11M5.5 2.5v2M10.5 2.5v2M3 2.5h10a1 1 0 011 1v9a1 1 0 01-1 1H3a1 1 0 01-1-1v-9a1 1 0 011-1z"/></svg>
-                  <span className={styles.cardTitle}>Slot settings</span>
-                </div>
-                {[['Slot duration','Time per patient','15 min'],['Max patients/day',null,'20'],['Start time',null,'09:00'],['End time',null,'17:00']].map(([label,sub,val],i) => (
-                  <div key={i} className={styles.settingsRow}>
-                    <div><div className={styles.settingsRowLabel}>{label}</div>{sub && <div className={styles.settingsRowSub}>{sub}</div>}</div>
-                    <input className={styles.settingsInput} defaultValue={val!} type={label?.includes('time') ? 'time' : 'text'} />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div style={{display:'flex',flexDirection:'column',gap:20}}>
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13 6c0 4-5 7-5 7S3 10 3 6a5 5 0 1110 0z"/><circle cx="8" cy="6" r="1.5"/></svg>
-                  <span className={styles.cardTitle}>Clinic details</span>
-                </div>
-                {[['Clinic name', clinicName],['Address','12 MG Road, Kochi'],['Phone','+91 98400 12345']].map(([label,val]) => (
-                  <div key={label} className={styles.settingsRow}>
-                    <div><div className={styles.settingsRowLabel}>{label}</div></div>
-                    <input className={styles.settingsInput} defaultValue={val} style={{width:180}} />
-                  </div>
-                ))}
-              </div>
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13 2H3a1 1 0 00-1 1v9a1 1 0 001 1h2l3 2 3-2h2a1 1 0 001-1V3a1 1 0 00-1-1z"/></svg>
-                  <span className={styles.cardTitle}>Notifications</span>
-                </div>
-                {([
-                  ['SMS on booking','Send confirmation to patient','smsBooking'],
-                  ['SMS reminders','1 hr before appointment','smsReminder'],
-                  ['No-show alerts','Notify when patient skips','noShow'],
-                  ['Daily summary email','End-of-day report','dailySummary'],
-                ] as [string,string,keyof typeof notifications][]).map(([label,sub,key]) => (
-                  <div key={key} className={styles.settingsRow}>
-                    <div><div className={styles.settingsRowLabel}>{label}</div><div className={styles.settingsRowSub}>{sub}</div></div>
-                    <div
-                      className={`${styles.toggle} ${notifications[key] ? styles.on : ''}`}
-                      onClick={() => setNotifications(prev => ({...prev, [key]: !prev[key]}))}
-                    ></div>
-                  </div>
-                ))}
-              </div>
-            </div>
+
+          <div className={styles.settingsTabs}>
+            <button
+              className={`${styles.settingsTabBtn} ${settingsTab === 'profile' ? styles.activeTab : ''}`}
+              onClick={() => setSettingsTab('profile')}
+            >Clinic Profile</button>
+            <button
+              className={`${styles.settingsTabBtn} ${settingsTab === 'schedule' ? styles.activeTab : ''}`}
+              onClick={() => setSettingsTab('schedule')}
+            >Schedule</button>
           </div>
+
+          {settingsTab === 'profile' && (
+            <div>
+              <div className={styles.card} style={{marginBottom: 20}}>
+                <div className={styles.cardHeader}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="5" r="2.5"/><path d="M2.5 13c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5"/></svg>
+                  <span className={styles.cardTitle}>Doctor information</span>
+                </div>
+                <div style={{padding: '20px 20px 0'}}>
+                  <div className={styles.settingsFormGrid}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Doctor name</label>
+                      <input className={styles.formInput} placeholder="Dr. Full Name" value={editDocName} onChange={e => setEditDocName(e.target.value)} />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Specialisation</label>
+                      <select className={styles.formInput} value={editSpec} onChange={e => setEditSpec(e.target.value)}>
+                        <option value="">Select specialisation</option>
+                        {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Clinic name</label>
+                      <input className={styles.formInput} placeholder="e.g. Nair Healthcare" value={editClinicName} onChange={e => setEditClinicName(e.target.value)} />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Qualifications</label>
+                      <input className={styles.formInput} placeholder="e.g. MBBS, MD" value={editQual} onChange={e => setEditQual(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className={styles.formGroup} style={{marginBottom: 16}}>
+                    <label className={styles.formLabel}>Clinic address</label>
+                    <input className={styles.formInput} placeholder="Street, City, State, PIN" value={editAddress} onChange={e => setEditAddress(e.target.value)} />
+                  </div>
+                  <div className={styles.settingsFormGrid} style={{marginBottom: 20}}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Phone / WhatsApp</label>
+                      <input className={styles.formInput} type="tel" placeholder="10-digit number" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Consultation fee (₹)</label>
+                      <input className={styles.formInput} type="number" placeholder="e.g. 300" value={editFee} onChange={e => setEditFee(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.settingsSaveRow} style={{padding: '16px 20px', borderTop: '1px solid var(--border)'}}>
+                  <button className={`${styles.actionBtn} ${styles.primary}`} onClick={saveClinicProfile} disabled={saving}>
+                    {saving ? 'Saving…' : 'Save profile'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {settingsTab === 'schedule' && (
+            <div className={styles.scheduleLayout}>
+
+              {/* LEFT: form cards + save */}
+              <div className={styles.scheduleLeft}>
+                <div className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2.5 5.5h11M5.5 2.5v2M10.5 2.5v2M3 2.5h10a1 1 0 011 1v9a1 1 0 01-1 1H3a1 1 0 01-1-1v-9a1 1 0 011-1z"/></svg>
+                    <span className={styles.cardTitle}>Working days</span>
+                  </div>
+                  <div style={{padding: 20}}>
+                    <div className={styles.chipRow}>
+                      {ALL_DAYS.map(day => (
+                        <button
+                          key={day}
+                          className={`${styles.chip} ${editDays.includes(day) ? styles.chipActive : ''}`}
+                          onClick={() => setEditDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day])}
+                        >{day}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+                    <span className={styles.cardTitle}>Clinic hours</span>
+                  </div>
+                  <div style={{padding: 20, display: 'flex', flexDirection: 'column', gap: 16}}>
+                    <div>
+                      <div className={styles.formLabel} style={{marginBottom: 8}}>Morning</div>
+                      <div className={styles.timeRangeRow}>
+                        <input type="time" className={styles.formInput} style={{width: 130}} value={editMorningStart} onChange={e => setEditMorningStart(e.target.value)} />
+                        <span>to</span>
+                        <input type="time" className={styles.formInput} style={{width: 130}} value={editMorningEnd} onChange={e => setEditMorningEnd(e.target.value)} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className={styles.formLabel} style={{marginBottom: 8}}>Evening</div>
+                      <div className={styles.timeRangeRow}>
+                        <input type="time" className={styles.formInput} style={{width: 130}} value={editEveningStart} onChange={e => setEditEveningStart(e.target.value)} />
+                        <span>to</span>
+                        <input type="time" className={styles.formInput} style={{width: 130}} value={editEveningEnd} onChange={e => setEditEveningEnd(e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/></svg>
+                    <span className={styles.cardTitle}>Slot settings</span>
+                  </div>
+                  <div style={{padding: 20, display: 'flex', flexDirection: 'column', gap: 16}}>
+                    <div>
+                      <div className={styles.formLabel} style={{marginBottom: 8}}>Slot duration</div>
+                      <div className={styles.chipRow}>
+                        {['10', '15', '20', '30'].map(d => (
+                          <button
+                            key={d}
+                            className={`${styles.chip} ${editSlotDuration === d ? styles.chipActive : ''}`}
+                            onClick={() => setEditSlotDuration(d)}
+                          >{d} min</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Max patients per day</label>
+                      <input type="number" className={styles.formInput} style={{maxWidth: 120}} min={1} max={200} value={editMaxPatients} onChange={e => setEditMaxPatients(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.settingsSaveRow}>
+                  <button className={`${styles.actionBtn} ${styles.primary}`} onClick={saveSchedule} disabled={saving}>
+                    {saving ? 'Saving…' : 'Save schedule'}
+                  </button>
+                </div>
+              </div>
+
+              {/* RIGHT: sticky QR column */}
+              <div className={styles.scheduleRight}>
+                <div className={styles.qrSticky}>
+                  <div className={styles.card}>
+                    <div className={styles.cardHeader}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="11" y="11" width="3" height="3" rx="0.5"/><path d="M9 11h1.5M9 13.5h1"/></svg>
+                      <span className={styles.cardTitle}>Booking QR</span>
+                    </div>
+                    <div style={{padding: 24}}>
+                      {slug ? (
+                        <>
+                          <div style={{display: 'flex', justifyContent: 'center', marginBottom: 16}}>
+                            <QRCodeSVG
+                              value={bookingUrl}
+                              size={176}
+                              bgColor="transparent"
+                              fgColor={theme === 'dark' ? '#e2e8f0' : '#0A0E14'}
+                              level="M"
+                            />
+                          </div>
+                          <div style={{position: 'absolute', left: -9999, top: -9999, pointerEvents: 'none'}}>
+                            <QRCodeCanvas ref={qrCanvasRef} value={bookingUrl} size={512} level="M" fgColor="#0A0E14" bgColor="#ffffff" />
+                          </div>
+                          <div style={{fontSize: 12, color: 'var(--teal)', textAlign: 'center', wordBreak: 'break-all', marginBottom: 20, lineHeight: 1.5}}>
+                            {bookingUrl}
+                          </div>
+                          <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+                            <button className={styles.qrSideBtn} onClick={copyQrLink}>
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="5" width="8" height="8" rx="1"/><path d="M3 11V3h8"/></svg>
+                              {qrCopied ? 'Copied!' : 'Copy link'}
+                            </button>
+                            <button className={`${styles.qrSideBtn} ${styles.qrSideBtnPrimary}`} onClick={downloadQrPng}>
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v7M5 7l3 3 3-3M3 12h10"/></svg>
+                              Download QR
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{textAlign: 'center', color: 'var(--muted)', fontSize: 13, padding: '12px 0', lineHeight: 1.6}}>
+                          Save your clinic profile first to generate a QR code.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
         </div>
 
         {/* ── Profile panel ── */}
@@ -771,9 +1054,9 @@ export default function DashboardPage() {
               <div className={styles.pageSub}>Doctor and clinic information</div>
             </div>
             <div style={{display:'flex',gap:10}}>
-              <button className={styles.actionBtn} style={{color:'var(--red)'}} onClick={() => router.push('/onboarding?step=3')}>
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15"><path d="M10 8H3M6 5l-3 3 3 3M10 3h2a1 1 0 011 1v8a1 1 0 01-1 1h-2"/></svg>
-                Back to setup
+              <button className={styles.actionBtn} onClick={() => setActivePage('settings')}>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/></svg>
+                View QR &amp; Settings
               </button>
               <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => toast.success('Profile saved')}>Save changes</button>
             </div>
@@ -781,7 +1064,7 @@ export default function DashboardPage() {
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,alignItems:'start'}}>
             <div className={styles.card}>
               <div className={styles.profileHero}>
-                <div className={styles.profileAvatarLg}>{doctorInitials}</div>
+                <div className={styles.profileAvatarLg}>{doctorInitials || '?'}</div>
                 <div>
                   <div className={styles.profileName}>{doctorName}</div>
                   <div className={styles.profileRole}>{doctorRole}</div>
