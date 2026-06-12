@@ -30,6 +30,22 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // For OAuth sign-ins, check if this user has completed their profile.
+      // Email/password users already have a doctors row (created at register).
+      // New Google users do not — send them to the profile completion page.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: doctor } = await supabase
+          .from('doctors')
+          .select('id')
+          .eq('id', user.id)
+          .single();
+
+        if (!doctor) {
+          return NextResponse.redirect(`${origin}/auth/complete-profile`);
+        }
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

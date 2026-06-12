@@ -325,17 +325,12 @@ export default function DashboardPage() {
               </svg>
             )}
           </button>
-          <button className={styles.themeBtn} onClick={handleLogout} title="Sign out">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3M10.5 10.5L13 8l-2.5-2.5M13 8H6"/>
-            </svg>
-          </button>
-          <div className={styles.topbarAvatar}>{doctorInitials}</div>
         </div>
       </div>
 
       {/* Sidebar */}
       <div className={styles.sidebar}>
+        <div className={styles.sidebarNav}>
         <div className={styles.sidebarSection}>
           {([
             ['dashboard', <svg key="d" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1.5"/><rect x="9" y="2" width="5" height="5" rx="1.5"/><rect x="2" y="9" width="5" height="5" rx="1.5"/><rect x="9" y="9" width="5" height="5" rx="1.5"/></svg>, 'Dashboard', true],
@@ -365,6 +360,17 @@ export default function DashboardPage() {
               onClick={() => setActivePage(page)}
             >{icon}{label}</div>
           ))}
+        </div>
+        </div>{/* /sidebarNav */}
+        <div className={styles.sidebarSignOut}>
+          <div className={`${styles.navItem} ${styles.navSignOut}`} onClick={handleLogout}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3"/>
+              <polyline points="11 11 14 8 11 5"/>
+              <line x1="14" y1="8" x2="6" y2="8"/>
+            </svg>
+            Sign out
+          </div>
         </div>
       </div>
 
