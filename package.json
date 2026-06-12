@@ -9,10 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.1",
     "next": "14.2.35",
     "qrcode.react": "^4.2.0",
+    "razorpay": "^2.9.6",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "react-hot-toast": "^2.6.0"
   },
   "devDependencies": {
     "@types/node": "^20",

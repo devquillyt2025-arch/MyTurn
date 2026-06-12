@@ -57,6 +57,20 @@
   font-size: 12px; font-weight: 600; color: var(--teal);
 }
 
+.upgradeLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal);
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid var(--teal-border);
+  border-radius: 6px;
+  background: var(--teal-dim);
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.upgradeLink:hover { opacity: 0.75; }
+
 /* ─── Sidebar ─────────────────────────────────── */
 .sidebar {
   background: var(--surface);
@@ -129,6 +143,54 @@
 .actionBtn.primary { background: var(--teal); color: var(--bg); border-color: transparent; }
 .actionBtn.primary:hover { opacity: 0.9; }
 .actionBtn svg { width: 15px; height: 15px; }
+
+/* ─── Usage banner (free plan) ───────────────── */
+.usageBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.usageBannerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.usageText {
+  font-size: 13px;
+  color: var(--muted);
+}
+.usageCount {
+  font-weight: 600;
+  color: var(--text);
+}
+.usageBar {
+  height: 4px;
+  width: 200px;
+  background: var(--border2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.usageBarFill {
+  height: 100%;
+  background: var(--teal);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.upgradeCta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--teal);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.upgradeCta:hover { text-decoration: underline; }
 
 /* ─── Stats row ───────────────────────────────── */
 .statsRow {

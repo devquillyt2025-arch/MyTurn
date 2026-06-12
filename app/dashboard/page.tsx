@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import styles from './page.module.css';
 import { useTheme } from '../theme-provider';
 import { BookingQRCode } from '../../components/BookingQRCode';
+import { createClient } from '@/lib/supabase/client';
+import toast from 'react-hot-toast';
 
 type DashPage = 'dashboard' | 'patients' | 'schedule' | 'analytics' | 'settings' | 'profile';
 type QStatus = 'done' | 'current' | 'waiting' | 'skipped';
@@ -92,44 +95,81 @@ export default function DashboardPage() {
   const [newName, setNewName] = useState('');
   const [newAge, setNewAge] = useState('');
   const [newTime, setNewTime] = useState('');
+  const [skipTarget, setSkipTarget] = useState<QItem | null>(null);
+  const [clinicId, setClinicId] = useState('');
+  const [doctorPlan, setDoctorPlan] = useState('free');
+  const [todayBookingCount, setTodayBookingCount] = useState(0);
 
   useEffect(() => {
     document.title = 'MyTurnApp';
-    try {
-      const data = JSON.parse(localStorage.getItem('myturnappClinic') || 'null');
-      if (data) {
-        if (data.clinic) setClinicName(data.clinic);
-        if (data.slug) setSlug(data.slug);
-        if (data.name) {
-          const ini = data.name.replace(/^dr\.?\s*/i, '').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
-          setDoctorInitials(ini);
-          setDoctorName(data.name);
-        }
-        if (data.spec || data.qual) {
-          setDoctorRole([data.qual, data.spec].filter(Boolean).join(' · '));
-        }
-      }
-    } catch {}
+    const supabase = createClient();
 
-    try {
-      const bookings: { token: number; name: string; age: number; time: string; status: QStatus }[] =
-        JSON.parse(localStorage.getItem('myturnappBookings') || '[]');
-      if (bookings.length > 0) {
-        setQueue(prev => {
-          const existing = new Set(prev.map(p => p.token));
-          const incoming = bookings
-            .filter(b => !existing.has(b.token))
-            .map(b => ({
-              token: b.token,
-              name: b.name || 'Unknown Patient',
-              age: b.age || 0,
-              time: b.time || '—',
-              status: 'waiting' as QStatus,
-            }));
-          return [...prev, ...incoming];
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+
+      supabase
+        .from('clinics')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (!data) return;
+          setClinicId(data.id);
+          if (data.name) setClinicName(data.name);
+          if (data.slug) setSlug(data.slug);
+          if (data.doctor_name) {
+            const ini = data.doctor_name.replace(/^dr\.?\s*/i, '').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+            setDoctorInitials(ini);
+            setDoctorName(data.doctor_name);
+          }
+          if (data.spec || data.qual) {
+            setDoctorRole([data.qual, data.spec].filter(Boolean).join(' · '));
+          }
+
+          supabase
+            .from('doctors')
+            .select('plan')
+            .eq('id', user.id)
+            .single()
+            .then(({ data: doctor }) => {
+              const plan = doctor?.plan ?? 'free';
+              setDoctorPlan(plan);
+              if (plan === 'free') {
+                const today = new Date().toISOString().split('T')[0];
+                supabase
+                  .from('usage_logs')
+                  .select('booking_count')
+                  .eq('clinic_id', data.id)
+                  .eq('date', today)
+                  .single()
+                  .then(({ data: log }) => {
+                    setTodayBookingCount(log?.booking_count ?? 0);
+                  });
+              }
+            });
+
+          supabase
+            .from('bookings')
+            .select('token_number, patient_name, status')
+            .eq('clinic_id', data.id)
+            .then(({ data: bookings }) => {
+              if (!bookings || bookings.length === 0) return;
+              setQueue(prev => {
+                const existing = new Set(prev.map(p => p.token));
+                const incoming = bookings
+                  .filter(b => !existing.has(b.token_number))
+                  .map(b => ({
+                    token: b.token_number,
+                    name: b.patient_name || 'Unknown Patient',
+                    age: 0,
+                    time: '—',
+                    status: 'waiting' as QStatus,
+                  }));
+                return [...prev, ...incoming];
+              });
+            });
         });
-      }
-    } catch {}
+    });
   }, []);
 
   useEffect(() => {
@@ -149,9 +189,17 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') { setQrOpen(false); setSlotsOpen(false); setAddPatientOpen(false); } }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') { setQrOpen(false); setSlotsOpen(false); setAddPatientOpen(false); setSkipTarget(null); } }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('upgraded') === '1') {
+      toast.success('Plan upgraded successfully!');
+      window.history.replaceState({}, '', '/dashboard');
+    }
   }, []);
 
   const current = queue.find(p => p.status === 'current');
@@ -184,7 +232,11 @@ export default function DashboardPage() {
 
   function skipCurrent() {
     if (!current) return;
-    if (!confirm(`Skip ${current.name} (Token #${tok(current.token)})?`)) return;
+    setSkipTarget(current);
+  }
+
+  function confirmSkip() {
+    if (!skipTarget) return;
     setQueue(prev => {
       const next = [...prev];
       const ci = next.findIndex(p => p.status === 'current');
@@ -193,6 +245,8 @@ export default function DashboardPage() {
       if (ni !== -1) next[ni] = { ...next[ni], status: 'current' };
       return next;
     });
+    toast(`Skipped ${skipTarget.name}`);
+    setSkipTarget(null);
   }
 
   const weekMax = Math.max(...WEEK_DATA.map(d => d.count));
@@ -214,18 +268,30 @@ export default function DashboardPage() {
     );
   }
 
-  function addPatient() {
+  async function addPatient() {
     if (!newName.trim()) return;
     const nextToken = Math.max(...queue.map(p => p.token), 0) + 1;
     const timeStr = newTime.trim() || '—';
     const entry: QItem = { token: nextToken, name: newName.trim(), age: parseInt(newAge) || 0, time: timeStr, status: 'waiting' };
     setQueue(prev => [...prev, entry]);
-    try {
-      const existing = JSON.parse(localStorage.getItem('myturnappBookings') || '[]');
-      localStorage.setItem('myturnappBookings', JSON.stringify([...existing, { token: nextToken, name: entry.name, age: entry.age, time: entry.time, status: 'waiting' }]));
-    } catch {}
+    if (clinicId) {
+      const supabase = createClient();
+      await supabase.from('bookings').insert({
+        clinic_id: clinicId,
+        patient_name: entry.name,
+        patient_phone: '',
+        token_number: nextToken,
+        status: 'waiting',
+      });
+    }
     setNewName(''); setNewAge(''); setNewTime('');
     setAddPatientOpen(false);
+  }
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/auth/login');
   }
 
   const filteredPatients = queue.filter(p =>
@@ -242,6 +308,11 @@ export default function DashboardPage() {
         <div className={styles.topbarClinic}>{clinicName}</div>
         <div className={styles.topbarRight}>
           <div className={styles.liveBadge}><div className={styles.liveDot}></div>Live</div>
+          {doctorPlan !== 'pro' && (
+            <Link href="/pricing" className={styles.upgradeLink}>
+              Upgrade →
+            </Link>
+          )}
           <button className={styles.themeBtn} onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
             {theme === 'dark' ? (
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -253,6 +324,11 @@ export default function DashboardPage() {
                 <path d="M13.5 9.5A6 6 0 016.5 2.5 6.5 6.5 0 1013.5 9.5z"/>
               </svg>
             )}
+          </button>
+          <button className={styles.themeBtn} onClick={handleLogout} title="Sign out">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3M10.5 10.5L13 8l-2.5-2.5M13 8H6"/>
+            </svg>
           </button>
           <div className={styles.topbarAvatar}>{doctorInitials}</div>
         </div>
@@ -303,7 +379,7 @@ export default function DashboardPage() {
               <div className={styles.pageSub}>{clock}</div>
             </div>
             <div style={{display:'flex',gap:10}}>
-              <button className={styles.actionBtn} onClick={() => alert('Queue paused — new bookings will see "Queue paused" message.')}>
+              <button className={styles.actionBtn} onClick={() => toast('Queue paused — new bookings will see "Queue paused" message.')}>
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="2.5" width="3.5" height="11" rx="1"/><rect x="9.5" y="2.5" width="3.5" height="11" rx="1"/></svg>
                 Pause queue
               </button>
@@ -313,6 +389,23 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
+
+          {doctorPlan === 'free' && (
+            <div className={styles.usageBanner}>
+              <div className={styles.usageBannerLeft}>
+                <div className={styles.usageText}>
+                  <span className={styles.usageCount}>{todayBookingCount} / 20</span> bookings used today
+                </div>
+                <div className={styles.usageBar}>
+                  <div
+                    className={styles.usageBarFill}
+                    style={{ width: `${Math.min((todayBookingCount / 20) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+              <a href="#" className={styles.upgradeCta}>Upgrade to Basic for unlimited bookings →</a>
+            </div>
+          )}
 
           <div className={styles.statsRow}>
             <div className={styles.statCard}>
@@ -600,7 +693,7 @@ export default function DashboardPage() {
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15"><path d="M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3M9 2h5v5M14 2l-7 7"/></svg>
                 Preview booking page ↗
               </button>
-              <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => alert('Settings saved!')}>Save changes</button>
+              <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => toast.success('Settings saved')}>Save changes</button>
             </div>
           </div>
           <div className={styles.settingsGrid}>
@@ -672,11 +765,11 @@ export default function DashboardPage() {
               <div className={styles.pageSub}>Doctor and clinic information</div>
             </div>
             <div style={{display:'flex',gap:10}}>
-              <button className={styles.actionBtn} style={{color:'var(--red)'}} onClick={() => router.push('/onboarding')}>
+              <button className={styles.actionBtn} style={{color:'var(--red)'}} onClick={() => router.push('/onboarding?step=3')}>
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15"><path d="M10 8H3M6 5l-3 3 3 3M10 3h2a1 1 0 011 1v8a1 1 0 01-1 1h-2"/></svg>
                 Back to setup
               </button>
-              <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => alert('Profile saved!')}>Save changes</button>
+              <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => toast.success('Profile saved')}>Save changes</button>
             </div>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,alignItems:'start'}}>
@@ -832,6 +925,33 @@ export default function DashboardPage() {
           <BookingQRCode slug={slug} clinicName={clinicName} size={180} />
           <div className={styles.modalUrlSub} style={{marginTop:12}}>
             <span style={{color:'var(--teal)',cursor:'pointer'}} onClick={() => window.open(`/book/${slug}`, '_blank')}>Preview booking page ↗</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Skip confirmation modal */}
+      <div className={`${styles.modalOverlay} ${skipTarget ? styles.open : ''}`} onClick={e => { if (e.target === e.currentTarget) setSkipTarget(null); }}>
+        <div className={styles.modalBox} style={{width: 340, textAlign: 'left'}}>
+          <div className={styles.modalTitle}>Skip patient?</div>
+          <p style={{fontSize: 14, color: 'var(--muted)', margin: '8px 0 24px', lineHeight: 1.5}}>
+            <strong style={{color: 'var(--text)', fontWeight: 500}}>{skipTarget?.name}</strong>
+            {' '}(Token #{skipTarget ? tok(skipTarget.token) : ''}) will be moved to skipped and the next patient will be called.
+          </p>
+          <div style={{display: 'flex', gap: 8}}>
+            <button
+              className={styles.actionBtn}
+              style={{flex: 1, justifyContent: 'center'}}
+              onClick={() => setSkipTarget(null)}
+            >
+              Cancel
+            </button>
+            <button
+              className={styles.actionBtn}
+              style={{flex: 1, justifyContent: 'center', background: 'var(--red)', color: '#fff', border: 'none'}}
+              onClick={confirmSkip}
+            >
+              Skip
+            </button>
           </div>
         </div>
       </div>

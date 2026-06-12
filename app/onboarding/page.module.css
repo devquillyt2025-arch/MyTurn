@@ -93,20 +93,20 @@
   font-size: 13px;
   color: var(--muted);
 }
-.progStep.active { color: var(--teal); }
-.progStep.done { color: var(--charcoal); }
+.progStep.active { color: var(--teal); font-weight: 500; }
+.progStep.done { color: var(--teal); }
 .progNum {
   width: 28px; height: 28px;
   border-radius: 50%;
   background: var(--border);
   display: flex; align-items: center; justify-content: center;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 }
 .progStep.active .progNum { background: var(--teal); color: white; }
-.progStep.done .progNum { background: var(--charcoal); color: white; }
+.progStep.done .progNum { background: var(--teal); color: white; }
 .progLine { flex: 1; height: 1.5px; background: var(--border); margin: 0 12px; max-width: 48px; }
-.progLine.done { background: var(--charcoal); }
+.progLine.done { background: var(--teal); }
 
 /* ─── Form ────────────────────────────────────── */
 .formHeading {

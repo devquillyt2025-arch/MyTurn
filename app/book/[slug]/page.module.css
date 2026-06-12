@@ -35,6 +35,7 @@
   max-width: 420px;
   margin: 0 auto;
   padding: 0 0 100px;
+  overflow-x: hidden;
 }
 
 /* ─── Header ─────────────────────────────────────────── */
@@ -82,7 +83,7 @@
   margin-bottom: 4px;
 }
 .doctorSpec { font-size: 13px; color: rgba(255,255,255,0.7); font-weight: 300; }
-.headerMeta { display: flex; gap: 16px; margin-top: 20px; }
+.headerMeta { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
 .metaPill {
   background: rgba(255,255,255,0.12);
   border-radius: 8px;
@@ -143,6 +144,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--border);
@@ -150,6 +152,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
   min-width: 56px;
+  min-height: 44px;
 }
 .dateChip:hover { border-color: var(--teal-mid); }
 .dateChip.active { background: var(--teal); border-color: var(--teal); color: white; }
@@ -185,6 +188,11 @@
   text-align: center;
   cursor: pointer;
   transition: all 0.15s ease;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 .slotChip:hover:not(.booked) { border-color: var(--teal-mid); background: var(--teal-light); }
 .slotChip.selected { background: var(--teal-light); border-color: var(--teal); color: var(--teal); }
@@ -233,7 +241,8 @@
 .otpRow input { flex: 1; letter-spacing: 6px; font-size: 18px; font-weight: 500; text-align: center; }
 .sendOtpBtn {
   flex-shrink: 0;
-  padding: 12px 14px;
+  padding: 0 14px;
+  min-height: 48px;
   background: var(--teal-light);
   border: 1.5px solid var(--teal);
   border-radius: var(--radius-sm);
@@ -268,12 +277,13 @@
 .confirmRow {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
   font-size: 13px;
-  padding: 5px 0;
+  padding: 7px 0;
 }
-.confirmRow .label { color: var(--muted); }
-.confirmRow .val { font-weight: 500; color: var(--ink); }
+.confirmRow .label { color: var(--muted); flex-shrink: 0; }
+.confirmRow .val { font-weight: 500; color: var(--ink); text-align: right; word-break: break-word; }
 
 /* ─── CTA bar ────────────────────────────────────────── */
 .ctaBar {
@@ -292,6 +302,7 @@
   border: none;
   border-radius: var(--radius);
   padding: 16px;
+  min-height: 48px;
   font-size: 16px;
   font-weight: 500;
   font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
@@ -341,13 +352,15 @@
 .successRow {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
 }
 .successRow:last-child { border-bottom: none; }
-.successRow .key { color: var(--muted); }
-.successRow .val { font-weight: 500; }
+.successRow .key { color: var(--muted); flex-shrink: 0; }
+.successRow .val { font-weight: 500; text-align: right; word-break: break-word; }
 .whatsappBtn {
   display: flex;
   align-items: center;
@@ -359,6 +372,7 @@
   border: none;
   border-radius: var(--radius);
   padding: 14px;
+  min-height: 48px;
   font-size: 15px;
   font-weight: 500;
   font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
@@ -393,3 +407,27 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 .anim { animation: slideUp 0.25s ease forwards; }
+
+/* ─── Mobile (≤ 430px — iPhone SE / common Android) ─── */
+@media (max-width: 430px) {
+  .header { padding: 28px 16px 20px; }
+  .stepsBar { padding: 16px 16px 0; }
+  .section { padding: 20px 16px; }
+  .formCard { padding: 16px; }
+  .successScreen { padding: 32px 16px; }
+  .ctaBar { padding: 12px 16px; }
+
+  /* Doctor name is the largest text — keep it readable without overflow */
+  .doctorName { font-size: 22px; }
+
+  /* Three-column slot grid is fine at 375px but label text must not clip */
+  .slotTime { font-size: 12px; }
+  .slotAvail { font-size: 10px; }
+
+  /* Date strip: ensure last chip is not clipped by section padding */
+  .dateStrip { padding-bottom: 8px; }
+
+  /* Token display on step 3 / success */
+  .tokenBig { font-size: 44px; }
+  .successToken { font-size: 64px; }
+}

@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'next/navigation';
 import styles from './page.module.css';
+import { supabase } from '@/lib/supabase';
+import toast from 'react-hot-toast';
 
 type BookStep = 1 | 2 | 3 | 'success';
 
@@ -47,8 +50,11 @@ const SLOT_DATA: Record<number, { time: string; booked: boolean }[]> = {
 function tok(n: number) { return `#${String(n).padStart(2, '0')}`; }
 
 export default function BookPage() {
+  const params = useParams();
+  const urlSlug = params?.slug as string;
   const [step, setStep] = useState<BookStep>(1);
   const [clinic, setClinic] = useState<ClinicData>({});
+  const [clinicId, setClinicId] = useState<string>('');
   const [selectedDateIdx, setSelectedDateIdx] = useState(0);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -78,18 +84,30 @@ export default function BookPage() {
   });
 
   useEffect(() => {
-    try {
-      const data = JSON.parse(localStorage.getItem('myturnappClinic') || 'null');
-      if (data) {
-        setClinic(data);
-        if (data.name) document.title = `MyTurnApp — Book with ${data.name}`;
-      } else {
-        document.title = 'MyTurnApp — Book Appointment';
-      }
-    } catch {
-      document.title = 'MyTurnApp — Book Appointment';
-    }
-  }, []);
+    if (!urlSlug) return;
+    supabase
+      .from('clinics')
+      .select('*')
+      .eq('slug', urlSlug)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setClinicId(data.id);
+          setClinic({
+            name: data.doctor_name,
+            spec: data.spec,
+            qual: data.qual,
+            clinic: data.name,
+            addr: data.address,
+            slotDuration: String(data.slot_duration),
+            days: data.days,
+          });
+          if (data.doctor_name) document.title = `MyTurnApp — Book with ${data.doctor_name}`;
+        } else {
+          document.title = 'MyTurnApp — Book Appointment';
+        }
+      });
+  }, [urlSlug]);
 
   function selectDate(idx: number, date: Date) {
     setSelectedDateIdx(idx);
@@ -109,7 +127,7 @@ export default function BookPage() {
   }
 
   function sendOTP() {
-    if (patientPhone.length !== 10) { alert('Enter a valid 10-digit number first'); return; }
+    if (patientPhone.length !== 10) { toast.error('Enter a valid 10-digit number first'); return; }
     const otp = String(Math.floor(1000 + Math.random() * 9000));
     setMockOtp(otp);
     setDisplayedOtp(otp);
@@ -147,34 +165,75 @@ export default function BookPage() {
 
   function goToStep3() {
     if (!patientName.trim() || patientPhone.length !== 10) {
-      alert('Please fill name and valid 10-digit mobile');
+      toast.error('Please fill your name and a valid 10-digit mobile');
       return;
     }
     if (!otpVerified) {
-      alert('Please verify your mobile number via OTP');
+      toast.error('Please verify your mobile number via OTP');
       return;
     }
     setStep(3);
   }
 
-  function confirmBooking() {
+  async function confirmBooking() {
     const dateStr = `${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]} — ${selectedSlot}`;
     setFinalDateTime(dateStr);
 
     let assignedToken = tokenNumber;
     try {
-      const existing: { token: number }[] = JSON.parse(localStorage.getItem('myturnappBookings') || '[]');
-      const maxToken = existing.length > 0 ? Math.max(...existing.map(b => b.token)) : 12;
-      assignedToken = maxToken + 1;
-      const newBooking = {
-        token: assignedToken,
-        name: patientName,
-        age: parseInt(patientAge) || 0,
-        time: selectedSlot ?? '',
-        status: 'waiting',
-      };
-      localStorage.setItem('myturnappBookings', JSON.stringify([...existing, newBooking]));
-    } catch {}
+      const isoDate = selectedDate.toISOString().split('T')[0];
+
+      const { data: slot } = await supabase
+        .from('slots')
+        .upsert(
+          { clinic_id: clinicId, date: isoDate, time: selectedSlot, max_bookings: 1 },
+          { onConflict: 'clinic_id,date,time' }
+        )
+        .select()
+        .single();
+
+      const { data: maxRow } = await supabase
+        .from('bookings')
+        .select('token_number')
+        .eq('clinic_id', clinicId)
+        .order('token_number', { ascending: false })
+        .limit(1);
+
+      assignedToken = maxRow && maxRow.length > 0 ? maxRow[0].token_number + 1 : 1;
+
+      let res: Response;
+      try {
+        res = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slot_id: slot?.id ?? null,
+            clinic_id: clinicId,
+            patient_name: patientName,
+            patient_phone: patientPhone,
+            token_number: assignedToken,
+          }),
+        });
+      } catch {
+        toast.error('Could not reach server. Please check your connection and try again.');
+        return;
+      }
+
+      if (!res.ok) {
+        let message = 'Booking failed. Please try again.';
+        try {
+          const body = await res.json();
+          if (body?.error) message = body.error;
+        } catch {
+          // response body was not JSON
+        }
+        toast.error(message);
+        return;
+      }
+    } catch {
+      toast.error('Something went wrong. Please try again.');
+      return;
+    }
 
     setFinalToken(tok(assignedToken));
     setStep('success');

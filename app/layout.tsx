@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { DM_Sans, DM_Serif_Display } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from './theme-provider';
+import { AppToaster } from '../components/AppToaster';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -19,7 +20,19 @@ const dmSerif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'MyTurnApp',
+  title: 'MyTurnApp — Skip the Queue, Book Your Slot',
+  description:
+    'Book clinic appointments instantly by scanning a QR code. No waiting, no counters. MyTurnApp for doctors and patients.',
+  keywords: ['clinic booking', 'doctor appointment', 'queue management', 'QR booking India'],
+  openGraph: {
+    title: 'MyTurnApp — Skip the Queue, Book Your Slot',
+    description:
+      'Book clinic appointments instantly by scanning a QR code. No waiting, no counters. MyTurnApp for doctors and patients.',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -39,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ThemeProvider>{children}</ThemeProvider>
+        <AppToaster />
       </body>
     </html>
   );

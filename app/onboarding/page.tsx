@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { QRCodeSVG } from 'qrcode.react';
 import styles from './page.module.css';
+import { createClient } from '@/lib/supabase/client';
+import { BookingQRCode } from '@/components/BookingQRCode';
+import toast from 'react-hot-toast';
 
 type Step = 1 | 2 | 3;
 
@@ -23,7 +25,6 @@ const DURATIONS = ['10', '15', '20', '30'];
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
-  const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState<FormState>({
     docName: '', docSpec: '', clinicName: '', docQual: '',
     clinicAddr: '', docPhone: '', docFee: ''
@@ -39,11 +40,27 @@ export default function OnboardingPage() {
   const [eveningEnd, setEveningEnd] = useState('20:00');
   const [maxPatients, setMaxPatients] = useState('30');
   const [slug, setSlug] = useState('');
-  const [bookingUrl, setBookingUrl] = useState('');
 
   useEffect(() => {
-    setMounted(true);
     document.title = 'MyTurnApp — Register Your Clinic';
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('step') === '3') {
+      setStep(3);
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        supabase
+          .from('clinics')
+          .select('slug, name')
+          .eq('user_id', user.id)
+          .single()
+          .then(({ data }) => {
+            if (data?.slug) setSlug(data.slug);
+            if (data?.name) setForm(prev => ({ ...prev, clinicName: data.name }));
+          });
+      });
+    }
   }, []);
 
   function setField(field: keyof FormState, value: string) {
@@ -77,22 +94,30 @@ export default function OnboardingPage() {
     return true;
   }
 
-  function goStep(next: Step) {
+  async function goStep(next: Step) {
     if (step === 1 && next === 2 && !validateStep1()) return;
     if (step === 2 && next === 3 && !validateStep2()) return;
 
     if (next === 3) {
       const generatedSlug = form.docName.toLowerCase().replace(/^dr\.?\s*/i, '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'your-clinic';
       setSlug(generatedSlug);
-      const url = mounted ? `${window.location.origin}/book/${generatedSlug}` : `/book/${generatedSlug}`;
-      setBookingUrl(url);
-      const clinicData = {
-        name: form.docName, spec: form.docSpec, clinic: form.clinicName,
-        qual: form.docQual, addr: form.clinicAddr, phone: form.docPhone, fee: form.docFee,
-        slug: generatedSlug, maxPatients, slotDuration: duration, days: selectedDays,
-        hours: { mStart: morningStart, mEnd: morningEnd, eStart: eveningStart, eEnd: eveningEnd }
-      };
-      localStorage.setItem('myturnappClinic', JSON.stringify(clinicData));
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from('clinics').upsert({
+        user_id: user?.id ?? null,
+        name: form.clinicName,
+        doctor_name: form.docName,
+        phone: form.docPhone,
+        address: form.clinicAddr,
+        slug: generatedSlug,
+        spec: form.docSpec,
+        qual: form.docQual,
+        fee: form.docFee,
+        max_patients: parseInt(maxPatients),
+        slot_duration: parseInt(duration),
+        days: selectedDays,
+        hours: { mStart: morningStart, mEnd: morningEnd, eStart: eveningStart, eEnd: eveningEnd },
+      }, { onConflict: 'slug' });
     }
 
     setStep(next);
@@ -312,26 +337,15 @@ export default function OnboardingPage() {
             <div className={styles.formSub}>Print it and paste it at your clinic entrance, reception desk, or waiting area. Patients scan and self-book.</div>
 
             <div className={styles.qrSuccess}>
-              <div className={styles.qrBox}>
-                {mounted && bookingUrl && (
-                  <QRCodeSVG
-                    value={bookingUrl}
-                    size={176}
-                    fgColor="#0D7377"
-                    bgColor="#ffffff"
-                    level="M"
-                  />
-                )}
-              </div>
+              <BookingQRCode slug={slug} clinicName={form.clinicName} size={176} />
 
-              <div className={styles.urlBox} onClick={() => window.open(`/book/${slug}`, '_blank')} title="Click to preview booking page">
+              <div className={styles.urlBox} onClick={() => window.open(`/book/${slug}`, '_blank')} title="Click to preview booking page" style={{marginTop:16}}>
                 myturnapp.online/book/{slug}
               </div>
-              <div style={{fontSize:12,color:'var(--muted)',marginBottom:0}}>Click link to preview patient booking page ↗</div>
+              <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>Click link to preview patient booking page ↗</div>
 
               <div className={styles.successActions}>
-                <button className={styles.secBtn} onClick={() => window.print()}>🖨 Print QR</button>
-                <button className={styles.secBtn} onClick={() => alert('PNG downloaded')}>↓ Download PNG</button>
+                <button className={styles.secBtn} onClick={() => setStep(2)}>← Back</button>
                 <button className={`${styles.secBtn} ${styles.primary}`} onClick={() => router.push('/dashboard')}>Open dashboard →</button>
               </div>
             </div>
