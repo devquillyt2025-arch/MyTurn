@@ -10,6 +10,26 @@ function adminClient() {
   );
 }
 
+// SECURITY FIX: In-memory rate limiter — max 3 booking attempts per IP per clinic per 10 minutes.
+// TODO: Replace with Upstash Redis for correctness across multiple serverless instances.
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 3;
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+function checkRateLimit(ip: string, clinicId: string): boolean {
+  const key = `${ip}:${clinicId}`;
+  const now = Date.now();
+  const entry = rateLimitStore.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitStore.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => null);
@@ -17,16 +37,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    const { clinic_id, slot_id, patient_name, patient_phone, token_number } = body as {
+    const { clinic_id, slot_id, patient_name, patient_phone } = body as {
       clinic_id: string;
       slot_id?: string | null;
       patient_name: string;
       patient_phone: string;
-      token_number: number;
     };
 
-    if (!clinic_id || !patient_name || !patient_phone || !token_number) {
+    if (!clinic_id || !patient_name || !patient_phone) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // SECURITY FIX: Rate limit by IP + clinic_id
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+      request.headers.get('x-real-ip') ??
+      'unknown';
+    if (!checkRateLimit(ip, clinic_id)) {
+      return NextResponse.json(
+        { error: 'Too many booking attempts. Please try again later.' },
+        { status: 429 }
+      );
     }
 
     const supabase = adminClient();
@@ -72,6 +103,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // SECURITY FIX: Atomic token assignment via Postgres advisory lock.
+    // Replaces the previous MAX(token_number)+1 read-then-write that allowed duplicates.
+    const { data: nextToken, error: tokenError } = await supabase.rpc('get_next_token', {
+      p_clinic_id: clinic_id,
+    });
+    if (tokenError || nextToken === null || nextToken === undefined) {
+      console.error('[POST /api/bookings] get_next_token error:', tokenError);
+      return NextResponse.json({ error: 'Failed to assign token number' }, { status: 500 });
+    }
+    const assignedToken = nextToken as number;
+
     // Create the booking
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -80,7 +122,7 @@ export async function POST(request: NextRequest) {
         clinic_id,
         patient_name,
         patient_phone,
-        token_number,
+        token_number: assignedToken,
         status: 'waiting',
       })
       .select('id, token_number')

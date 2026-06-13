@@ -105,12 +105,25 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!data.session) {
+      // Email confirmation is enabled — the doctor row will be created via
+      // /auth/complete-profile after the user confirms and signs in.
+      setInfo('Check your inbox for a confirmation link, then sign in.');
+      setLoading(false);
+      return;
+    }
+
+    // SECURITY FIX: Pass the verified session token in the Authorization header.
+    // The server validates this token and extracts user_id from it — the body
+    // no longer carries user_id.
     if (data.user) {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.session.access_token}`,
+        },
         body: JSON.stringify({
-          user_id:     data.user.id,
           clinic_name: form.clinicName,
           doctor_name: form.doctorName,
           phone:       form.phone,
@@ -124,13 +137,6 @@ export default function RegisterPage() {
         setLoading(false);
         return;
       }
-    }
-
-    if (!data.session) {
-      // Supabase project has email confirmation enabled
-      setInfo('Check your inbox for a confirmation link, then sign in.');
-      setLoading(false);
-      return;
     }
 
     router.push('/dashboard');

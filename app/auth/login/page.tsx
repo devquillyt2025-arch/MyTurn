@@ -15,6 +15,13 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Forgot password state
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('error') === 'auth_callback_failed') {
@@ -63,77 +70,167 @@ export default function LoginPage() {
     // On success the browser redirects — no need to setLoading(false)
   }
 
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotLoading(true);
+    setForgotError('');
+    const supabase = createClient();
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+    if (resetError) {
+      setForgotError(resetError.message);
+    } else {
+      setForgotSent(true);
+    }
+    setForgotLoading(false);
+  }
+
+  function openForgot() {
+    setShowForgot(true);
+    setForgotEmail(email);
+    setForgotError('');
+    setForgotSent(false);
+  }
+
+  function closeForgot() {
+    setShowForgot(false);
+    setForgotSent(false);
+    setForgotError('');
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.brand}>MyTurnApp</div>
-        <h1 className={styles.heading}>Welcome back</h1>
-        <p className={styles.sub}>Sign in to your doctor dashboard</p>
 
-        <button
-          className={styles.googleBtn}
-          onClick={handleGoogleSignIn}
-          disabled={googleLoading || loading}
-          type="button"
-        >
-          <GoogleIcon />
-          {googleLoading ? 'Redirecting…' : 'Continue with Google'}
-        </button>
+        {!showForgot ? (
+          <>
+            <h1 className={styles.heading}>Welcome back</h1>
+            <p className={styles.sub}>Sign in to your doctor dashboard</p>
 
-        <div className={styles.divider}>or</div>
+            <button
+              className={styles.googleBtn}
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading || loading}
+              type="button"
+            >
+              <GoogleIcon />
+              {googleLoading ? 'Redirecting…' : 'Continue with Google'}
+            </button>
 
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="email">Email</label>
-            <input
-              id="email"
-              className={styles.input}
-              type="email"
-              autoComplete="email"
-              placeholder="doctor@clinic.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-          </div>
+            <div className={styles.divider}>or</div>
 
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="password">Password</label>
-            <div className={styles.inputWrapper}>
-              <input
-                id="password"
-                className={styles.input}
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                placeholder="••••••••"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-              />
+            <form className={styles.form} onSubmit={handleSubmit}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="email">Email</label>
+                <input
+                  id="email"
+                  className={styles.input}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="doctor@clinic.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className={styles.field}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label className={styles.label} htmlFor="password">Password</label>
+                  <button
+                    type="button"
+                    onClick={openForgot}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: 'var(--teal)', fontFamily: 'inherit', fontWeight: 500 }}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                <div className={styles.inputWrapper}>
+                  <input
+                    id="password"
+                    className={styles.input}
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className={styles.eyeBtn}
+                    onClick={() => setShowPassword(v => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff /> : <Eye />}
+                  </button>
+                </div>
+              </div>
+
+              {error && <p className={styles.errorMsg}>{error}</p>}
+
+              <button className={styles.btn} type="submit" disabled={loading || googleLoading}>
+                {loading ? 'Signing in…' : 'Sign in →'}
+              </button>
+            </form>
+
+            <p className={styles.foot}>
+              New to MyTurnApp?{' '}
+              <Link href="/auth/register" className={styles.link}>
+                Create an account
+              </Link>
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className={styles.heading}>Reset password</h1>
+            <p className={styles.sub}>
+              {forgotSent
+                ? `Reset link sent to ${forgotEmail}`
+                : "Enter your email and we'll send you a reset link."}
+            </p>
+
+            {!forgotSent ? (
+              <form className={styles.form} onSubmit={handleForgotPassword}>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="forgotEmail">Email</label>
+                  <input
+                    id="forgotEmail"
+                    className={styles.input}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="doctor@clinic.com"
+                    value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {forgotError && <p className={styles.errorMsg}>{forgotError}</p>}
+
+                <button className={styles.btn} type="submit" disabled={forgotLoading}>
+                  {forgotLoading ? 'Sending…' : 'Send reset link →'}
+                </button>
+              </form>
+            ) : (
+              <p className={styles.infoMsg}>
+                Check your inbox and follow the link to set a new password. The link expires in 1 hour.
+              </p>
+            )}
+
+            <p className={styles.foot}>
               <button
                 type="button"
-                className={styles.eyeBtn}
-                onClick={() => setShowPassword(v => !v)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={closeForgot}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 13, color: 'var(--teal)', fontFamily: 'inherit', fontWeight: 500 }}
               >
-                {showPassword ? <EyeOff /> : <Eye />}
+                ← Back to sign in
               </button>
-            </div>
-          </div>
-
-          {error && <p className={styles.errorMsg}>{error}</p>}
-
-          <button className={styles.btn} type="submit" disabled={loading || googleLoading}>
-            {loading ? 'Signing in…' : 'Sign in →'}
-          </button>
-        </form>
-
-        <p className={styles.foot}>
-          New to MyTurnApp?{' '}
-          <Link href="/auth/register" className={styles.link}>
-            Create an account
-          </Link>
-        </p>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

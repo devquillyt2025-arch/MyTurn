@@ -43,11 +43,23 @@ export default function CompleteProfilePage() {
     setLoading(true);
     setError('');
 
+    // SECURITY FIX: Pass the verified session token so the server can authenticate
+    // this request without trusting user_id from the body.
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setError('Session expired. Please sign in again.');
+      setLoading(false);
+      return;
+    }
+
     const res = await fetch('/api/auth/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
       body: JSON.stringify({
-        user_id: userId,
         clinic_name: clinicName,
         doctor_name: doctorName,
         phone,

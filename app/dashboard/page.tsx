@@ -124,12 +124,24 @@ export default function DashboardPage() {
   const [qrCopied, setQrCopied] = useState(false);
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
+  // User account info (for password change)
+  const [userEmail, setUserEmail] = useState('');
+  const [userProvider, setUserProvider] = useState('');
+  // Change password fields
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+
   useEffect(() => {
     document.title = 'MyTurnApp';
     const supabase = createClient();
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
+      if (user.email) setUserEmail(user.email);
+      setUserProvider(user.app_metadata?.provider ?? '');
 
       supabase
         .from('clinics')
@@ -360,6 +372,31 @@ export default function DashboardPage() {
     a.href = url;
     a.download = `${slug || 'booking'}-qr.png`;
     a.click();
+  }
+
+  async function changePassword() {
+    setPwError('');
+    if (!pwCurrent || !pwNew || !pwConfirm) { setPwError('All fields are required.'); return; }
+    if (pwNew.length < 8) { setPwError('New password must be at least 8 characters.'); return; }
+    if (pwNew !== pwConfirm) { setPwError('New passwords do not match.'); return; }
+    setPwSaving(true);
+    const supabase = createClient();
+    // Re-authenticate to verify the current password before allowing the change
+    const { error: reAuthError } = await supabase.auth.signInWithPassword({ email: userEmail, password: pwCurrent });
+    if (reAuthError) {
+      setPwError('Current password is incorrect.');
+      setPwSaving(false);
+      return;
+    }
+    const { error: updateError } = await supabase.auth.updateUser({ password: pwNew });
+    if (updateError) {
+      setPwError(updateError.message);
+      setPwSaving(false);
+      return;
+    }
+    setPwCurrent(''); setPwNew(''); setPwConfirm('');
+    toast.success('Password updated successfully');
+    setPwSaving(false);
   }
 
   async function saveClinicProfile() {
@@ -904,6 +941,74 @@ export default function DashboardPage() {
                   <button className={`${styles.actionBtn} ${styles.primary}`} onClick={saveClinicProfile} disabled={saving}>
                     {saving ? 'Saving…' : 'Save profile'}
                   </button>
+                </div>
+              </div>
+
+              {/* Security card — change password */}
+              <div className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="3" y="7" width="10" height="7" rx="1.5"/>
+                    <path d="M5 7V5a3 3 0 016 0v2"/>
+                  </svg>
+                  <span className={styles.cardTitle}>Security</span>
+                </div>
+                <div style={{padding: 20}}>
+                  {userProvider === 'google' ? (
+                    <p style={{fontSize: 13, color: 'var(--muted)', margin: 0, lineHeight: 1.6}}>
+                      You signed in with Google. Password change is not available for Google accounts.
+                    </p>
+                  ) : (
+                    <div style={{display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 400}}>
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>Current password</label>
+                        <input
+                          className={styles.formInput}
+                          type="password"
+                          placeholder="Enter current password"
+                          value={pwCurrent}
+                          onChange={e => setPwCurrent(e.target.value)}
+                          autoComplete="current-password"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>New password</label>
+                        <input
+                          className={styles.formInput}
+                          type="password"
+                          placeholder="Min 8 characters"
+                          value={pwNew}
+                          onChange={e => setPwNew(e.target.value)}
+                          autoComplete="new-password"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>Confirm new password</label>
+                        <input
+                          className={styles.formInput}
+                          type="password"
+                          placeholder="Repeat new password"
+                          value={pwConfirm}
+                          onChange={e => setPwConfirm(e.target.value)}
+                          autoComplete="new-password"
+                        />
+                      </div>
+                      {pwError && (
+                        <p style={{fontSize: 13, color: 'var(--red)', background: 'var(--red-dim)', border: '1px solid rgba(255,94,94,0.25)', borderRadius: 8, padding: '10px 14px', margin: 0, lineHeight: 1.5}}>
+                          {pwError}
+                        </p>
+                      )}
+                      <div>
+                        <button
+                          className={`${styles.actionBtn} ${styles.primary}`}
+                          onClick={changePassword}
+                          disabled={pwSaving}
+                        >
+                          {pwSaving ? 'Updating…' : 'Update password'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
