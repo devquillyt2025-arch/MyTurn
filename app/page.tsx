@@ -1,9 +1,9 @@
 'use client';
 
-import { motion, useInView } from 'framer-motion';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRef, useEffect, useState, CSSProperties } from 'react';
-import { Smartphone, Zap, Wifi, LayoutDashboard, type LucideIcon } from 'lucide-react';
+import { Wifi } from 'lucide-react';
 
 /* ─── Animated counter ─────────────────────────────────────────────────── */
 function Counter({ to, suffix = '' }: { to: number; suffix?: string }) {
@@ -83,42 +83,192 @@ function StepCard({ step, Icon, title, desc, delay }: {
   );
 }
 
-/* ─── Feature card (hover lift + teal border + scale) ─────────────────── */
-function FeatureCard({ Icon, title, desc, delay }: {
-  Icon: LucideIcon; title: string; desc: string; delay: number;
+/* ─── Bento card shell (hover teal border + glow + scale) ─────────────── */
+function BentoCard({ children, gridStyle, pad = 24, delay = 0 }: {
+  children: React.ReactNode; gridStyle: CSSProperties; pad?: number; delay?: number;
 }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <Reveal delay={delay}>
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ scale: 1.01 }}
+      style={gridStyle}
+    >
       <div
-        style={{
-          ...glass,
-          padding: '28px 28px',
-          display: 'flex',
-          gap: 22,
-          alignItems: 'flex-start',
-          cursor: 'pointer',
-          transition: 'border-color .2s, transform .2s, box-shadow .2s',
-          borderColor: hovered ? 'rgba(20,216,200,.3)' : 'rgba(255,255,255,.09)',
-          transform: hovered ? 'translateY(-4px) scale(1.01)' : 'none',
-          boxShadow: hovered ? '0 12px 40px rgba(13,148,136,.1)' : 'none',
-        }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        style={{
+          height: '100%',
+          background: 'rgba(255,255,255,0.03)',
+          border: `1px solid ${hovered ? 'rgba(13,148,136,0.3)' : 'rgba(255,255,255,0.06)'}`,
+          borderRadius: 20,
+          padding: pad,
+          boxShadow: hovered ? '0 12px 48px rgba(13,148,136,.14)' : 'none',
+          transition: 'border-color .25s, box-shadow .25s',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
       >
-        <div style={{
-          width: 48, height: 48, borderRadius: 12, flexShrink: 0,
-          background: 'rgba(13,148,136,.12)', border: '1px solid rgba(20,216,200,.18)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Icon size={22} color="#14D8C8" />
-        </div>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>{title}</div>
-          <div style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.7 }}>{desc}</div>
+        {children}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Bento card 1: phone browser, queue position counts 3→2→1 ────────── */
+function CardQueuePosition() {
+  const [pos, setPos] = useState(3);
+  useEffect(() => {
+    const id = setInterval(() => setPos(p => (p <= 1 ? 3 : p - 1)), 3000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div style={{ display: 'flex', gap: 28, alignItems: 'center', height: '100%', flexWrap: 'wrap' }}>
+      <div style={{ flex: '1 1 200px', minWidth: 200 }}>
+        <div style={{ fontSize: 19, fontWeight: 700, color: '#fff', marginBottom: 8 }}>No App Download Needed</div>
+        <div style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.7, maxWidth: 320 }}>
+          Patients join by scanning a QR code. Works instantly in any smartphone browser — no install, no friction.
         </div>
       </div>
-    </Reveal>
+      {/* Phone browser mock */}
+      <div style={{ flex: '0 0 196px', width: 196 }}>
+        <div style={{ background: '#0B0F1A', border: '1px solid rgba(255,255,255,.09)', borderRadius: 18, padding: 10, boxShadow: '0 16px 40px rgba(0,0,0,.5)' }}>
+          {/* browser bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 12 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F87171' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FBBF24' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399' }} />
+            <div style={{ flex: 1, height: 14, marginLeft: 4, borderRadius: 5, background: 'rgba(255,255,255,.06)' }} />
+          </div>
+          <div style={{ textAlign: 'center', padding: '14px 0 18px' }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 10 }}>You are</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
+              <span style={{ fontSize: 20, fontWeight: 700, color: '#94A3B8' }}>#</span>
+              <AnimatePresence mode="popLayout">
+                <motion.span
+                  key={pos}
+                  initial={{ y: 16, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -16, opacity: 0 }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ fontSize: 56, fontWeight: 900, color: '#14D8C8', letterSpacing: '-3px', lineHeight: 1, display: 'inline-block' }}
+                >{pos}</motion.span>
+              </AnimatePresence>
+            </div>
+            <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 8 }}>in queue</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Bento card 2 (tall): live queue list cycling statuses ───────────── */
+const QUEUE_NAMES = ['Priya Krishnan', 'Ravi Sharma', 'Ananya Pillai'];
+const STATUS_CYCLE = [
+  { label: 'In session', color: '#14D8C8', dot: true },
+  { label: 'Next up',    color: '#F5A623', dot: false },
+  { label: 'Waiting',    color: '#475569', dot: false },
+];
+function CardLiveQueue() {
+  const [shift, setShift] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setShift(s => (s + 1) % STATUS_CYCLE.length), 2000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 6 }}>Real-time Queue Updates</div>
+      <div style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.65, marginBottom: 24 }}>
+        Live token numbers, estimated wait time, and status updates that refresh automatically.
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 'auto' }}>
+        {QUEUE_NAMES.map((name, i) => {
+          const status = STATUS_CYCLE[(i + shift) % STATUS_CYCLE.length];
+          return (
+            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 12, padding: '11px 12px' }}>
+              <span style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#94A3B8', flexShrink: 0 }}>{i + 1}</span>
+              <span style={{ fontSize: 13, flex: 1, color: '#E2E8F0', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                {status.dot && (
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#14D8C8', animation: 'livePulse 1.4s ease infinite' }} />
+                )}
+                <motion.span
+                  key={status.label}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35 }}
+                  style={{ fontSize: 10, fontWeight: 700, color: status.color, whiteSpace: 'nowrap' }}
+                >{status.label}</motion.span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Bento card 3: signal bars + 2G badge ────────────────────────────── */
+function CardSignal() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(13,148,136,.12)', border: '1px solid rgba(20,216,200,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Wifi size={20} color="#14D8C8" style={{ animation: 'qtSignal 2s ease-in-out infinite' }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 26 }}>
+          {[40, 62, 82, 100].map((h, i) => (
+            <span key={i} style={{ width: 5, borderRadius: 2, height: `${h}%`, background: i < 2 ? '#14D8C8' : 'rgba(255,255,255,.15)', animation: `qtBar 1.6s ease-in-out ${i * 0.15}s infinite` }} />
+          ))}
+        </div>
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>Works on Any Phone</div>
+      <div style={{ fontSize: 13, color: '#94A3B8', lineHeight: 1.6, marginBottom: 14 }}>
+        Optimised for Indian networks and low-end Android devices.
+      </div>
+      <span style={{ marginTop: 'auto', alignSelf: 'flex-start', fontSize: 11, fontWeight: 700, color: '#14D8C8', background: 'rgba(20,216,200,.1)', border: '1px solid rgba(20,216,200,.2)', borderRadius: 99, padding: '4px 12px' }}>
+        ✦ Works on 2G
+      </span>
+    </div>
+  );
+}
+
+/* ─── Bento card 4 (wide): mini dashboard with shimmer stat pills ─────── */
+function CardDashboard() {
+  const stats = ['23 patients today', 'Avg 11 min', 'Next: Ravi S.'];
+  return (
+    <div style={{ display: 'flex', gap: 28, alignItems: 'center', height: '100%', flexWrap: 'wrap' }}>
+      <div style={{ flex: '1 1 200px', minWidth: 200 }}>
+        <div style={{ fontSize: 19, fontWeight: 700, color: '#fff', marginBottom: 8 }}>Doctor Dashboard</div>
+        <div style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.7, maxWidth: 320 }}>
+          Manage the live queue, view daily stats, generate QR codes, and configure schedules — all in one place.
+        </div>
+      </div>
+      <div style={{ flex: '1 1 260px', minWidth: 240, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {stats.map((s, i) => (
+          <div key={s} style={{
+            position: 'relative', overflow: 'hidden',
+            background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)',
+            borderRadius: 12, padding: '13px 16px', fontSize: 13, fontWeight: 600, color: '#E2E8F0',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#14D8C8', flexShrink: 0 }} />
+            {s}
+            <span style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(105deg, transparent 40%, rgba(20,216,200,.12) 50%, transparent 60%)',
+              backgroundSize: '200% 100%',
+              animation: `qtShimmer 3s ease-in-out ${i * 0.4}s infinite`,
+              pointerEvents: 'none',
+            }} />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -212,6 +362,17 @@ export default function LandingPage() {
         .card-float-1{animation:cardFloat 5s ease-in-out infinite;animation-delay:0.8s}
         .card-float-2{animation:cardFloat 5s ease-in-out infinite;animation-delay:1.6s}
         .card-float-3{animation:cardFloat 5s ease-in-out infinite;animation-delay:2.4s}
+        @keyframes qtShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        @keyframes qtBar{0%,100%{opacity:1}50%{opacity:.4}}
+        @keyframes qtSignal{0%,100%{opacity:1}50%{opacity:.5}}
+        .bento-grid{display:grid;gap:18px;grid-template-columns:1fr;}
+        @media (min-width:860px){
+          .bento-grid{
+            grid-template-columns:repeat(3,1fr);
+            grid-auto-rows:minmax(190px,auto);
+            grid-template-areas:"card1 card1 card2" "card3 card4 card4";
+          }
+        }
         html{scroll-behavior:smooth}
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:5px;background:#080B14}
@@ -233,7 +394,7 @@ export default function LandingPage() {
         <Nav />
 
         {/* ═══ HERO ═════════════════════════════════════════════════ */}
-        <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '100px 28px 80px' }}>
+        <section id="hero" style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '100px 28px 80px' }}>
           {/* Blobs */}
           <div className="lp-blob lp-b1" style={{ top: '5%', left: '-10%', width: 700, height: 700, background: 'radial-gradient(circle, rgba(124,58,237,.2) 0%, transparent 70%)' }} />
           <div className="lp-blob lp-b2" style={{ top: '10%', right: '-14%', width: 780, height: 780, background: 'radial-gradient(circle, rgba(20,216,200,.12) 0%, transparent 70%)' }} />
@@ -446,17 +607,29 @@ export default function LandingPage() {
                 >Built for how clinics<br />actually work</motion.h2>
               </div>
             </Reveal>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 18 }}>
-              <FeatureCard Icon={Smartphone}     title="No App Download Needed"   desc="Patients join by scanning a QR code. Works instantly in any smartphone browser — no install, no friction." delay={0} />
-              <FeatureCard Icon={Zap}            title="Real-time Queue Updates"   desc="Live token numbers, estimated wait time, and status updates that refresh automatically." delay={0.09} />
-              <FeatureCard Icon={Wifi}           title="Works on Any Phone"         desc="Optimised for Indian networks and low-end Android devices. Fast and lightweight on 2G." delay={0.18} />
-              <FeatureCard Icon={LayoutDashboard} title="Doctor Dashboard"          desc="Manage the live queue, view daily stats, generate QR codes, and configure schedules — all in one place." delay={0.27} />
+            <div className="bento-grid">
+              {/* Card 1 — wide: queue position counts 3→2→1 */}
+              <BentoCard gridStyle={{ gridArea: 'card1' }} pad={32} delay={0}>
+                <CardQueuePosition />
+              </BentoCard>
+              {/* Card 2 — tall: live queue list */}
+              <BentoCard gridStyle={{ gridArea: 'card2' }} pad={24} delay={0.08}>
+                <CardLiveQueue />
+              </BentoCard>
+              {/* Card 3 — small: signal / 2G */}
+              <BentoCard gridStyle={{ gridArea: 'card3' }} pad={24} delay={0.16}>
+                <CardSignal />
+              </BentoCard>
+              {/* Card 4 — wide: doctor dashboard */}
+              <BentoCard gridStyle={{ gridArea: 'card4' }} pad={32} delay={0.24}>
+                <CardDashboard />
+              </BentoCard>
             </div>
           </div>
         </section>
 
         {/* ═══ STATS BAR ════════════════════════════════════════════ */}
-        <section style={{
+        <section id="stats" style={{
           padding: '80px 28px',
           background: 'linear-gradient(135deg, rgba(13,148,136,.1), rgba(124,58,237,.1))',
           borderTop: '1px solid rgba(255,255,255,.05)',
