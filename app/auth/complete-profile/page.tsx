@@ -11,7 +11,6 @@ export default function CompleteProfilePage() {
   const [clinicName, setClinicName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [userId, setUserId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -23,7 +22,6 @@ export default function CompleteProfilePage() {
         router.replace('/auth/login');
         return;
       }
-      setUserId(user.id);
       setEmail(user.email ?? '');
       // Pre-fill name from Google profile if available
       const fullName = user.user_metadata?.full_name ?? user.user_metadata?.name ?? '';
