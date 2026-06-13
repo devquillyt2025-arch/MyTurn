@@ -46,18 +46,18 @@ html[data-theme="dark"] {
 html[data-theme="light"] {
   color-scheme: light;
   /* Background / surface system */
-  --bg: #F0F2F7;
+  --bg: #F8FAFC;
   --surface: #FFFFFF;
-  --surface2: #E8EBF2;
-  --border: rgba(0,0,0,0.08);
-  --border2: rgba(0,0,0,0.14);
-  --text: #1A1D27;
-  --muted: #6B7280;
+  --surface2: #F1F5F9;
+  --border: #E2E8F0;
+  --border2: #CBD5E1;
+  --text: #0F172A;
+  --muted: #64748B;
 
-  /* Brand accent colours */
-  --teal: #0CB8A8;
-  --teal-dim: rgba(12,184,168,0.1);
-  --teal-border: rgba(12,184,168,0.3);
+  /* Brand accent colours — teal-600 for better contrast on light bg */
+  --teal: #0D9488;
+  --teal-dim: rgba(13,148,136,0.08);
+  --teal-border: rgba(13,148,136,0.2);
   --amber: #E09017;
   --amber-dim: rgba(224,144,23,0.12);
   --red: #E53535;

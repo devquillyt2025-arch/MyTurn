@@ -99,17 +99,18 @@
   cursor: pointer;
   transition: all 0.15s;
   margin-bottom: 2px;
+  text-decoration: none;
 }
 .navItem:hover { background: var(--surface2); color: var(--text); }
 .navItem.active { background: var(--teal-dim); color: var(--teal); }
 .navItem svg { width: 16px; height: 16px; flex-shrink: 0; }
 .sidebarSignOut {
   margin-top: auto;
-  padding: 12px;
+  padding: 16px 12px 12px;
   border-top: 1px solid var(--border);
 }
-.navSignOut { color: var(--red); }
-.navSignOut:hover { background: none; color: var(--red); opacity: 0.7; }
+.navSignOut { color: #94A3B8; margin-bottom: 0; }
+.navSignOut:hover { background: var(--surface2); color: #F87171; opacity: 1; }
 .navBadge {
   margin-left: auto;
   background: var(--teal);
@@ -542,6 +543,7 @@
 @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 .pagePanel { display: none; animation: fadeIn 0.25s ease forwards; }
 .pagePanel.active { display: block; }
+.routePage { display: block; animation: fadeIn 0.25s ease forwards; }
 
 /* ── Theme toggle button ──────────────────────────── */
 .themeBtn {
@@ -560,7 +562,7 @@
 
 /* ── Light-mode overrides for hardcoded dark values ── */
 :global(html[data-theme="light"]) .currentTokenCard {
-  background: linear-gradient(135deg, rgba(12,184,168,0.07) 0%, rgba(12,184,168,0.04) 100%);
+  background: linear-gradient(135deg, rgba(13,148,136,0.07) 0%, rgba(13,148,136,0.04) 100%);
 }
 
 :global(html[data-theme="light"]) .liveBadge {
@@ -742,4 +744,724 @@
   .scheduleLeft { order: 1; }
   .scheduleRight { order: 2; }
   .qrSticky { position: static; }
+}
+
+/* ══════════════════════════════════════════════════
+   Light-mode refinements — modern SaaS aesthetic
+   (dark mode unchanged; all selectors below are
+   scoped to html[data-theme="light"])
+   ══════════════════════════════════════════════════ */
+
+/* ─── Page background ─────────────────────────────
+   --bg is already #F8FAFC via globals.css; .main
+   inherits it via background: var(--bg).            */
+
+/* ─── Sidebar ─────────────────────────────────── */
+:global(html[data-theme="light"]) .sidebar {
+  box-shadow: 2px 0 12px rgba(15,23,42,0.05);
+}
+:global(html[data-theme="light"]) .navItem {
+  color: #64748B;
+}
+:global(html[data-theme="light"]) .navItem:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+}
+:global(html[data-theme="light"]) .navItem.active {
+  background: #0D9488;
+  color: #FFFFFF;
+}
+/* Badge on active nav item — white pill on teal bg */
+:global(html[data-theme="light"]) .navItem.active .navBadge {
+  background: rgba(255,255,255,0.25);
+  color: #FFFFFF;
+}
+
+/* ─── Cards — white + shadow-md + slate-100 border ── */
+:global(html[data-theme="light"]) .card {
+  border-radius: 12px;
+  border-color: #F1F5F9;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04);
+}
+
+/* ─── Card header — teal left accent ─────────── */
+:global(html[data-theme="light"]) .cardHeader {
+  border-left: 4px solid #0D9488;
+  padding-left: 16px; /* 4 px border + 16 px gap = original 20 px visual indent */
+}
+:global(html[data-theme="light"]) .cardTitle {
+  font-weight: 600;
+  color: #0F172A;
+}
+
+/* ─── Form inputs ─────────────────────────────── */
+:global(html[data-theme="light"]) .formInput {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  border-radius: 8px;
+}
+:global(html[data-theme="light"]) .formInput:focus {
+  border-color: #0D9488;
+  box-shadow: 0 0 0 3px rgba(13,148,136,0.12);
+}
+:global(html[data-theme="light"]) .formInput::placeholder {
+  color: #94A3B8;
+}
+
+/* ─── Form labels ─────────────────────────────── */
+:global(html[data-theme="light"]) .formLabel {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ─── Page title & subtitle ───────────────────── */
+:global(html[data-theme="light"]) .pageTitle {
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0F172A;
+}
+:global(html[data-theme="light"]) .pageSub {
+  font-size: 13px;
+  color: #64748B;
+}
+
+/* ─── Settings tabs ───────────────────────────── */
+:global(html[data-theme="light"]) .settingsTabBtn {
+  color: #64748B;
+}
+:global(html[data-theme="light"]) .settingsTabBtn.activeTab {
+  color: #0D9488;
+  border-bottom-color: #0D9488;
+  font-weight: 600;
+}
+
+/* ─── Primary action button — hover teal-700 ─── */
+:global(html[data-theme="light"]) .actionBtn.primary:hover {
+  opacity: 1;
+  background: #0F766E;
+}
+:global(html[data-theme="light"]) .qrSideBtnPrimary:hover {
+  opacity: 1;
+  background: #0F766E;
+}
+
+/* ─── Stat cards — match card shadow ─────────── */
+:global(html[data-theme="light"]) .statCard {
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04);
+}
+
+/* ─── Topbar — slight bottom shadow ──────────── */
+:global(html[data-theme="light"]) .topbar {
+  box-shadow: 0 1px 0 #E2E8F0, 0 2px 8px rgba(15,23,42,0.04);
+}
+
+/* ══════════════════════════════════════════════════
+   Light-mode: My Profile panel refinements
+   ══════════════════════════════════════════════════ */
+
+/* ─── formRow inputs — white bg, slate-300 border ── */
+:global(html[data-theme="light"]) .formRowInput {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  border-radius: 8px;
+}
+:global(html[data-theme="light"]) .formRowInput:focus {
+  border-color: #0D9488;
+  box-shadow: 0 0 0 3px rgba(13,148,136,0.12);
+  outline: none;
+}
+:global(html[data-theme="light"]) .formRowInput::placeholder {
+  color: #94A3B8;
+}
+
+/* ─── formRow labels — slate-600, medium ───────── */
+:global(html[data-theme="light"]) .formRowLabel {
+  color: #475569;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* ─── formRow values — Working hours time text ─── */
+:global(html[data-theme="light"]) .formRowVal {
+  color: #1E293B;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* ─── Avatar ring — ring-2 ring-teal-200 ring-offset-2 */
+:global(html[data-theme="light"]) .profileAvatarLg {
+  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #99F6E4;
+  border-color: transparent;
+}
+
+/* ─── Badges: first = Verified (teal), last = MCI Reg. (slate) */
+:global(html[data-theme="light"]) .profileBadge {
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 9999px;
+  padding: 4px 12px;
+}
+:global(html[data-theme="light"]) .profileBadge:first-child {
+  background: #F0FDFA;
+  color: #0F766E;
+  border: 1px solid #99F6E4;
+}
+:global(html[data-theme="light"]) .profileBadge:last-child {
+  background: #F8FAFC;
+  color: #475569;
+  border: 1px solid #E2E8F0;
+}
+
+/* ─── Schedule: Day / Week view toggle ──────────── */
+.viewToggleGroup {
+  display: flex;
+  gap: 2px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+.viewToggleBtn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  transition: all 0.15s;
+}
+.viewToggleBtn:hover { color: var(--text); }
+.viewToggleBtn.activeToggle { background: var(--teal); color: #fff; }
+
+/* ─── Week view navigation row ──────────────────── */
+.weekNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+.weekNavLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ─── Week grid: 7-column calendar ──────────────── */
+.weekGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.weekDayCol {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  min-height: 200px;
+}
+.weekDayCol:hover { border-color: var(--teal-border); background: var(--surface2); }
+.weekDayCol.weekToday { border-color: var(--teal-border); background: var(--teal-dim); }
+.weekDayName {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.weekDayNum {
+  font-family: var(--font-dm-serif, 'DM Serif Display'), serif;
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.weekDayCol.weekToday .weekDayName { color: var(--teal); }
+.weekDayCol.weekToday .weekDayNum { color: var(--teal); }
+.weekDayCount {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.weekBarTrack {
+  flex: 1;
+  background: var(--surface2);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  min-height: 80px;
+}
+.weekBarFill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 6px;
+  transition: height 0.5s cubic-bezier(0.4,0,0.2,1);
+  opacity: 0.75;
+}
+
+/* ─── Mobile: 3-column week view ────────────────── */
+@media (max-width: 767px) {
+  .weekGrid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ═══════════════════════════════════════════════════
+   Time-grid week view (Teams / Google Calendar style)
+   ═══════════════════════════════════════════════════ */
+
+.calWrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+/* Sticky header row: gutter + 7 day headers */
+.calHeaderRow {
+  display: flex;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.calTimeGutter {
+  width: 56px;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+.calDayHeader {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 6px 6px;
+  text-align: center;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+.calDayHeader:last-child { border-right: none; }
+.calTodayHeader { background: rgba(20,216,200,0.05); }
+.calSunHeader   { opacity: 0.45; }
+
+.calDayName {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.calTodayHeader .calDayName { color: var(--teal); }
+
+.calDayNum {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+}
+
+/* Teal circle for today's date */
+.calTodayCircle {
+  border-radius: 50% !important;
+  background: var(--teal) !important;
+  color: #fff !important;
+  font-size: 14px !important;
+  width: 28px !important;
+  height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Booking density dots */
+.calDots {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  min-height: 7px;
+}
+.calDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--teal);
+  opacity: 0.65;
+}
+.calDotFull { background: var(--red) !important; opacity: 0.85 !important; }
+
+/* Scrollable grid body */
+.calBodyWrap {
+  display: flex;
+  overflow-y: auto;
+  overflow-x: auto;
+  max-height: 560px;
+}
+
+/* Time label column */
+.calTimeCol {
+  width: 56px;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+.calTimeLabel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 4px 8px 0 0;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+/* Day columns */
+.calDayCol {
+  flex: 1;
+  min-width: 80px;
+  position: relative;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.calDayCol:last-child { border-right: none; }
+.calTodayCol  { background: rgba(20,216,200,0.04); }
+.calSundayCol { background: rgba(0,0,0,0.18); }
+
+/* Horizontal grid lines (one per 30-min slot) */
+.calGridLine {
+  position: absolute;
+  left: 0; right: 0;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.calGridHour { border-top-color: rgba(255,255,255,0.08); }
+
+/* Break-time blocks (lunch, evening) */
+.calBreakBlock {
+  position: absolute;
+  left: 2px; right: 2px;
+  background: rgba(148,163,184,0.09);
+  border: 1px solid rgba(148,163,184,0.14);
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-start;
+  padding: 4px 6px;
+  font-size: 10px;
+  color: var(--muted);
+  pointer-events: none;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+/* Booking event blocks */
+.calEvent {
+  position: absolute;
+  left: 3px; right: 3px;
+  background: rgba(20,216,200,0.13);
+  border-left: 3px solid var(--teal);
+  border-radius: 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  z-index: 2;
+  overflow: hidden;
+  transition: background 0.12s;
+  box-sizing: border-box;
+}
+.calEvent:hover { background: rgba(20,216,200,0.22); }
+.calEventBright {
+  background: rgba(20,216,200,0.26);
+  border-left-color: #14D8C8;
+  box-shadow: 0 0 10px rgba(20,216,200,0.18);
+}
+.calEventName {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--teal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.calEventStatus {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* Closed-day overlay */
+.calClosedOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--muted);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ── Event popover ─────────────────────────────────── */
+.calPopover {
+  position: fixed;
+  z-index: 300;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  width: 220px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  animation: fadeIn 0.12s ease;
+}
+.calPopoverClose {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: none; border: none;
+  color: var(--muted); cursor: pointer;
+  font-size: 13px; padding: 2px 4px; line-height: 1;
+}
+.calPopoverClose:hover { color: var(--text); }
+.calPopoverName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+  padding-right: 20px;
+}
+.calPopoverRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 5px 0;
+  border-top: 1px solid var(--border);
+}
+.calPopoverRow span:last-child { color: var(--text); }
+.calPopoverStatus { color: var(--teal) !important; font-weight: 500; }
+
+/* ═══════════════════════════════════════════════════
+   Month view calendar grid
+   ═══════════════════════════════════════════════════ */
+
+.monthDowHeader {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.monthDowCell {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  text-align: center;
+  padding: 9px 0;
+  border-right: 1px solid var(--border);
+}
+.monthDowCell:last-child { border-right: none; }
+
+/* Wrapper holds the grid + the empty-state overlay as siblings */
+.monthGridWrap {
+  position: relative;
+}
+
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow: hidden;
+}
+.monthCell {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  min-height: 84px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.monthCell:hover { background: var(--surface2); }
+.monthCell:nth-child(7n) { border-right: none; }
+.monthCell:nth-last-child(-n+7) { border-bottom: none; }
+.monthCellOther { opacity: 0.3; pointer-events: none; }
+.monthCellToday { background: rgba(20,216,200,0.05); }
+
+.monthCellNum {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.monthCellCount {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.monthMiniTrack {
+  height: 3px;
+  background: var(--surface2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.monthMiniFill {
+  height: 100%;
+  border-radius: 2px;
+  opacity: 0.8;
+  transition: width 0.4s ease;
+}
+
+/* ── Light-mode calendar overrides ─────────────────── */
+:global(html[data-theme="light"]) .calWrap {
+  box-shadow: 0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04);
+}
+:global(html[data-theme="light"]) .calHeaderRow {
+  border-bottom-color: #E2E8F0;
+  background: #FFFFFF;
+}
+:global(html[data-theme="light"]) .calTimeGutter,
+:global(html[data-theme="light"]) .calDayHeader,
+:global(html[data-theme="light"]) .calDayCol,
+:global(html[data-theme="light"]) .calGridLine { border-color: #F1F5F9; }
+:global(html[data-theme="light"]) .calGridHour { border-top-color: #E2E8F0; }
+:global(html[data-theme="light"]) .calTodayCol  { background: rgba(13,148,136,0.04); }
+:global(html[data-theme="light"]) .calSundayCol { background: #F8FAFC; }
+:global(html[data-theme="light"]) .calEvent { background: rgba(13,148,136,0.10); border-left-color: #0D9488; }
+:global(html[data-theme="light"]) .calEvent:hover { background: rgba(13,148,136,0.18); }
+:global(html[data-theme="light"]) .calEventBright { background: rgba(13,148,136,0.20); border-left-color: #0F766E; }
+:global(html[data-theme="light"]) .calEventName { color: #0F766E; }
+:global(html[data-theme="light"]) .calPopover { box-shadow: 0 8px 24px rgba(15,23,42,0.15); }
+:global(html[data-theme="light"]) .monthDowHeader,
+:global(html[data-theme="light"]) .monthGrid { border-color: #E2E8F0; }
+:global(html[data-theme="light"]) .monthDowCell,
+:global(html[data-theme="light"]) .monthCell { border-color: #E2E8F0; }
+:global(html[data-theme="light"]) .monthCell:hover { background: #F8FAFC; }
+:global(html[data-theme="light"]) .monthCellToday { background: rgba(13,148,136,0.05); }
+:global(html[data-theme="light"]) .monthCellToday .monthCellNum { background: #0D9488; color: #fff; }
+
+/* Mobile: horizontal scroll for week grid */
+@media (max-width: 767px) {
+  .calHeaderRow,
+  .calBodyWrap { overflow-x: auto; }
+  .calDayCol,
+  .calDayHeader { min-width: 72px; }
+}
+
+/* ═══════════════════════════════════════════════════
+   Month cell — refined layout
+   ═══════════════════════════════════════════════════ */
+
+/* Top row: date number (left) + count badge (right) */
+.monthCellTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+/* Today date circle — used inside monthCellNum */
+.monthTodayNum {
+  background: var(--teal);
+  color: #fff !important;
+  border-radius: 50%;
+  width: 24px !important;
+  height: 24px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 12px !important;
+}
+
+/* Teal count badge — top-right of cell */
+.monthCellBadge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal);
+  background: rgba(20,216,200,0.12);
+  border: 1px solid rgba(20,216,200,0.2);
+  border-radius: 10px;
+  padding: 1px 6px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* Sunday column — dimmed date number */
+.monthCellSun .monthCellNum { color: var(--muted); }
+.monthCellSun .monthCellTop { opacity: 0.6; }
+
+/* Loading skeleton pulse */
+@keyframes skelPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.monthCellSkel {
+  animation: skelPulse 1.4s ease infinite;
+  pointer-events: none;
+}
+.monthCellSkel .monthCellNum {
+  background: var(--surface2);
+  border-radius: 4px;
+  color: transparent;
+  width: 20px;
+  height: 14px;
+  display: block;
+}
+
+/* Empty-state — sits below the grid, centred */
+.monthEmpty {
+  padding: 40px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+/* ── Light-mode overrides for month cell additions ── */
+:global(html[data-theme="light"]) .monthCellBadge {
+  background: rgba(13,148,136,0.08);
+  border-color: rgba(13,148,136,0.18);
+  color: #0D9488;
+}
+:global(html[data-theme="light"]) .monthTodayNum {
+  background: #0D9488;
+  color: #fff !important;
+}
+:global(html[data-theme="light"]) .monthCellSkel .monthCellNum {
+  background: #E2E8F0;
+}
+:global(html[data-theme="light"]) .monthCellToday {
+  background: rgba(13,148,136,0.08);
 }
