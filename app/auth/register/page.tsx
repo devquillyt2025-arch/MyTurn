@@ -146,7 +146,10 @@ export default function RegisterPage() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        <div className={styles.brand}>MyTurnApp</div>
+        <div className={styles.brand} style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="MyTurn Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
+          MyTurn
+        </div>
         <h1 className={styles.heading}>Create your account</h1>
         <p className={styles.sub}>
           Set up your clinic and start managing queues in minutes

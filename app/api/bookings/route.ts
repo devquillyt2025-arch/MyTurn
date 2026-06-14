@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
       if (currentCount >= FREE_PLAN_LIMIT) {
         return NextResponse.json(
-          { error: 'Daily booking limit reached. Ask your doctor to upgrade to MyTurnApp Basic.' },
+          { error: 'Daily booking limit reached. Ask your doctor to upgrade to MyTurn Basic.' },
           { status: 429 }
         );
       }

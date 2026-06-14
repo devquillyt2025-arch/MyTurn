@@ -102,7 +102,10 @@ export default function LoginPage() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        <div className={styles.brand}>MyTurnApp</div>
+        <div className={styles.brand} style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="MyTurn Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
+          MyTurn
+        </div>
 
         {!showForgot ? (
           <>
@@ -177,7 +180,7 @@ export default function LoginPage() {
             </form>
 
             <p className={styles.foot}>
-              New to MyTurnApp?{' '}
+              New to MyTurn?{' '}
               <Link href="/auth/register" className={styles.link}>
                 Create an account
               </Link>

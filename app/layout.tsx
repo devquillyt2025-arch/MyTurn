@@ -20,14 +20,14 @@ const dmSerif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'MyTurnApp — Skip the Queue, Book Your Slot',
+  title: 'MyTurn — Skip the Queue, Book Your Slot',
   description:
-    'Book clinic appointments instantly by scanning a QR code. No waiting, no counters. MyTurnApp for doctors and patients.',
+    'Book clinic appointments instantly by scanning a QR code. No waiting, no counters. MyTurn for doctors and patients.',
   keywords: ['clinic booking', 'doctor appointment', 'queue management', 'QR booking India'],
   openGraph: {
-    title: 'MyTurnApp — Skip the Queue, Book Your Slot',
+    title: 'MyTurn — Skip the Queue, Book Your Slot',
     description:
-      'Book clinic appointments instantly by scanning a QR code. No waiting, no counters. MyTurnApp for doctors and patients.',
+      'Book clinic appointments instantly by scanning a QR code. No waiting, no counters. MyTurn for doctors and patients.',
     type: 'website',
   },
   twitter: {
@@ -39,10 +39,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${dmSans.variable} ${dmSerif.variable}`} suppressHydrationWarning>
       <head>
-        <link
-          rel="icon"
-          href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%2314D8C8'/><text x='8' y='12' text-anchor='middle' font-family='sans-serif' font-weight='700' font-size='11' fill='%230F1117'>M</text></svg>"
-        />
         {/* Anti-FOUC: apply saved theme before first paint */}
         <script
           dangerouslySetInnerHTML={{

@@ -23,7 +23,7 @@
   gap: 16px;
 }
 .logo {
-  font-family: var(--font-dm-serif, 'DM Serif Display'), serif;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif; letter-spacing: -0.5px; font-weight: 700;
   font-size: 20px;
   color: var(--teal);
   letter-spacing: -0.5px;
@@ -74,8 +74,10 @@
 
 /* ─── Sidebar ─────────────────────────────────── */
 .sidebar {
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: rgba(15, 17, 23, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -102,7 +104,11 @@
   text-decoration: none;
 }
 .navItem:hover { background: var(--surface2); color: var(--text); }
-.navItem.active { background: var(--teal-dim); color: var(--teal); }
+.navItem.active {
+  background: linear-gradient(90deg, rgba(20, 216, 200, 0.15) 0%, rgba(20, 216, 200, 0) 100%);
+  border-left: 3px solid var(--teal);
+  color: var(--teal);
+}
 .navItem svg { width: 16px; height: 16px; flex-shrink: 0; }
 .sidebarSignOut {
   margin-top: auto;
@@ -126,6 +132,12 @@
   overflow-y: auto;
   padding: 28px 32px;
   background: var(--bg);
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(20, 216, 200, 0.08), transparent 35%),
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
+  background-position: 0 0, center center, center center;
 }
 
 .pageHeader {
@@ -135,7 +147,7 @@
   margin-bottom: 28px;
 }
 .pageTitle {
-  font-family: var(--font-dm-serif, 'DM Serif Display'), serif;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif; letter-spacing: -0.5px; font-weight: 700;
   font-size: 28px;
   color: var(--text);
   margin-bottom: 4px;
@@ -155,7 +167,12 @@
   transition: all 0.15s;
 }
 .actionBtn:hover { background: var(--surface2); border-color: var(--teal-border); }
-.actionBtn.primary { background: var(--teal); color: var(--bg); border-color: transparent; }
+.actionBtn.primary {
+  background: linear-gradient(135deg, #0D9488, #14D8C8);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 24px rgba(13, 148, 136, 0.3);
+}
 .actionBtn.primary:hover { opacity: 0.9; }
 .actionBtn svg { width: 15px; height: 15px; }
 
@@ -215,14 +232,17 @@
   margin-bottom: 28px;
 }
 .statCard {
-  background: var(--surface);
   border-radius: var(--radius);
-  border: 1px solid var(--border);
   padding: 18px 20px;
+  background: rgba(18, 24, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(45, 212, 191, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 .statLabel { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
 .statVal {
-  font-family: var(--font-dm-serif, 'DM Serif Display'), serif;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif; letter-spacing: -0.5px; font-weight: 700;
   font-size: 32px;
   line-height: 1;
   margin-bottom: 6px;
@@ -242,10 +262,13 @@
 }
 
 .card {
-  background: var(--surface);
   border-radius: var(--radius);
-  border: 1px solid var(--border);
   overflow: hidden;
+  background: rgba(18, 24, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(45, 212, 191, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 .cardHeader {
   padding: 16px 20px;
@@ -257,8 +280,11 @@
 
 /* ─── Current token card ──────────────────────── */
 .currentTokenCard {
-  background: linear-gradient(135deg, #0D1A24 0%, #0A1F1E 100%);
-  border: 1px solid var(--teal-border);
+  background: linear-gradient(135deg, rgba(13, 26, 36, 0.8) 0%, rgba(10, 31, 30, 0.8) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(20, 216, 200, 0.3);
+  box-shadow: 0 0 32px rgba(20, 216, 200, 0.1);
   border-radius: var(--radius);
   padding: 28px 24px;
   text-align: center;
@@ -266,7 +292,7 @@
 }
 .currentLabel { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal); margin-bottom: 12px; }
 .currentNum {
-  font-family: var(--font-dm-serif, 'DM Serif Display'), serif;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif; letter-spacing: -0.5px; font-weight: 700;
   font-size: 80px;
   color: var(--teal);
   line-height: 1;
@@ -289,7 +315,12 @@
   transition: all 0.15s;
 }
 .tokenAction:hover { border-color: var(--teal-border); }
-.tokenAction.nextBtn { background: var(--teal); color: var(--bg); border-color: transparent; }
+.tokenAction.nextBtn {
+  background: linear-gradient(135deg, #0D9488, #14D8C8);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 24px rgba(13, 148, 136, 0.3);
+}
 .tokenAction.nextBtn:hover { opacity: 0.85; }
 
 /* ─── Token flip animation ────────────────────── */
@@ -320,7 +351,7 @@
   width: 36px; height: 36px;
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-dm-serif, 'DM Serif Display'), serif;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif; letter-spacing: -0.5px; font-weight: 700;
   font-size: 15px;
   background: var(--surface2);
   border: 1px solid var(--border2);
@@ -460,12 +491,21 @@
 }
 .toggle.on::after { transform: translateX(16px); }
 .settingsInput {
-  background: var(--surface2); border: 1px solid var(--border2);
-  border-radius: 6px; padding: 6px 10px; color: var(--text);
-  font-size: 13px; font-family: var(--font-dm-sans, 'DM Sans'), sans-serif; outline: none;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  outline: none;
   width: 140px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.settingsInput:focus { border-color: var(--teal-border); }
+.settingsInput:focus {
+  border-color: rgba(45, 212, 191, 0.4);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
+}
 .settingsInput::placeholder { color: var(--muted); }
 :global(html[data-theme="dark"]) .settingsInput::placeholder { color: #94a3b8; }
 
@@ -479,10 +519,10 @@
   width: 72px; height: 72px; border-radius: 50%;
   background: var(--teal-dim); border: 2px solid var(--teal-border);
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-dm-serif, 'DM Serif Display'), serif; font-size: 26px; color: var(--teal);
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif; letter-spacing: -0.5px; font-weight: 700; font-size: 26px; color: var(--teal);
   flex-shrink: 0;
 }
-.profileName { font-family: var(--font-dm-serif, 'DM Serif Display'), serif; font-size: 22px; }
+.profileName { font-family: var(--font-dm-sans, 'DM Sans'), sans-serif; letter-spacing: -0.5px; font-weight: 700; font-size: 22px; }
 .profileRole { font-size: 13px; color: var(--muted); margin-top: 4px; }
 .profileBadges { display: flex; gap: 8px; margin-top: 10px; }
 .profileBadge {
@@ -500,12 +540,21 @@
 .formRowLabel { color: var(--muted); }
 .formRowVal { color: var(--text); font-weight: 500; }
 .formRowInput {
-  background: var(--surface2); border: 1px solid var(--border2);
-  border-radius: 6px; padding: 7px 12px;
-  color: var(--text); font-size: 13px; font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
-  outline: none; width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.formRowInput:focus { border-color: var(--teal-border); }
+.formRowInput:focus {
+  border-color: rgba(45, 212, 191, 0.4);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
+}
 
 /* ─── QR Modal ────────────────────────────────── */
 .modalOverlay {
@@ -983,7 +1032,7 @@
   color: var(--muted);
 }
 .weekDayNum {
-  font-family: var(--font-dm-serif, 'DM Serif Display'), serif;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif; letter-spacing: -0.5px; font-weight: 700;
   font-size: 24px;
   line-height: 1.1;
   color: var(--text);
@@ -1464,4 +1513,44 @@
 }
 :global(html[data-theme="light"]) .monthCellToday {
   background: rgba(13,148,136,0.08);
+}
+
+/* ─── Light Theme Fixes for Dashboard Redesign ─── */
+:global(html[data-theme="light"]) .main {
+  background: var(--bg);
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(13, 148, 136, 0.05), transparent 35%),
+    linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+}
+
+:global(html[data-theme="light"]) .sidebar {
+  background: rgba(255, 255, 255, 0.95);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+:global(html[data-theme="light"]) .card,
+:global(html[data-theme="light"]) .statCard {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(13, 148, 136, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+:global(html[data-theme="light"]) .currentTokenCard {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 253, 250, 0.9) 100%);
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  box-shadow: 0 8px 24px rgba(13, 148, 136, 0.08);
+}
+
+:global(html[data-theme="light"]) .formRowInput,
+:global(html[data-theme="light"]) .settingsInput {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  color: #0F172A;
+}
+
+:global(html[data-theme="light"]) .formRowInput:focus,
+:global(html[data-theme="light"]) .settingsInput:focus {
+  border-color: #0D9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
 }

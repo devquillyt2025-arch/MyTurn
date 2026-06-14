@@ -88,7 +88,10 @@ export default function CompleteProfilePage() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        <div className={styles.brand}>MyTurnApp</div>
+        <div className={styles.brand} style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="MyTurn Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
+          MyTurn
+        </div>
         <h1 className={styles.heading}>Complete your profile</h1>
         <p className={styles.sub}>
           Just a few details to set up your clinic — you only do this once.

@@ -19,7 +19,7 @@ const PLANS = [
     description: 'For growing clinics ready to go unlimited',
     features: [
       'Unlimited patient bookings',
-      'No MyTurnApp branding',
+      'No MyTurn branding',
       'Full dashboard & queue management',
       'Booking QR code',
       'Booking history',
@@ -126,7 +126,7 @@ export default function PricingPage() {
     const rzp = new window.Razorpay({
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
       subscription_id: subscriptionId,
-      name: 'MyTurnApp',
+      name: 'MyTurn',
       description: planLabel,
       prefill: { email: doctorEmail },
       theme: { color: '#14A89E' },
@@ -156,7 +156,10 @@ export default function PricingPage() {
       <div className={styles.page}>
         {/* Topbar */}
         <div className={styles.topbar}>
-          <div className={styles.brand}>MyTurnApp</div>
+          <div className={styles.brand} style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="MyTurn Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
+          MyTurn
+        </div>
           <Link href="/dashboard" className={styles.backLink}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width="14" height="14">
               <path d="M10 3L5 8l5 5"/>

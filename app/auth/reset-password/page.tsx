@@ -67,7 +67,10 @@ export default function ResetPasswordPage() {
     return (
       <div className={styles.page}>
         <div className={styles.card}>
-          <div className={styles.brand}>MyTurnApp</div>
+          <div className={styles.brand} style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="MyTurn Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
+          MyTurn
+        </div>
           <h1 className={styles.heading}>Link expired</h1>
           <p className={styles.sub}>This password reset link is invalid or has expired.</p>
           <p className={styles.infoMsg}>Request a new link from the sign-in page.</p>
@@ -93,7 +96,10 @@ export default function ResetPasswordPage() {
     return (
       <div className={styles.page}>
         <div className={styles.card}>
-          <div className={styles.brand}>MyTurnApp</div>
+          <div className={styles.brand} style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="MyTurn Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
+          MyTurn
+        </div>
           <h1 className={styles.heading}>Password updated</h1>
           <p className={styles.infoMsg}>Your password has been changed. Redirecting to dashboard…</p>
         </div>
@@ -104,7 +110,10 @@ export default function ResetPasswordPage() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        <div className={styles.brand}>MyTurnApp</div>
+        <div className={styles.brand} style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="MyTurn Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
+          MyTurn
+        </div>
         <h1 className={styles.heading}>Set new password</h1>
         <p className={styles.sub}>Choose a strong password for your account.</p>
 

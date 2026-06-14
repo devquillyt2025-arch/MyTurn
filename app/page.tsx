@@ -292,8 +292,11 @@ function Nav() {
       transition: 'background .3s, backdrop-filter .3s',
     }}>
       <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px', height: '100%', display: 'flex', alignItems: 'center', gap: 40 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-.5px', userSelect: 'none', color: '#14D8C8' }}>
-          my<span style={{ color: '#fff' }}>turn</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, userSelect: 'none' }}>
+          <img src="/logo.png" alt="MyTurn Logo" style={{ height: 40, width: 'auto', objectFit: 'contain' }} />
+          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-.5px', color: '#14D8C8' }}>
+            My<span style={{ color: '#fff' }}>Turn</span>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 32, flex: 1 }}>
           {(['#features', '#how-it-works', '#pricing'] as const).map((href, i) => {
@@ -347,7 +350,7 @@ const IconArrow = () => (
 export default function LandingPage() {
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes blob1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(60px,-80px) scale(1.12)}66%{transform:translate(-45px,55px) scale(.94)}}
         @keyframes blob2{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-70px,65px) scale(1.08)}66%{transform:translate(55px,-55px) scale(.96)}}
         @keyframes blob3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(35px,-60px) scale(1.15)}}
@@ -377,7 +380,7 @@ export default function LandingPage() {
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:5px;background:#080B14}
         ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
-      `}</style>
+      ` }} />
 
       <div style={{
         background: `
@@ -751,7 +754,12 @@ export default function LandingPage() {
         <footer style={{ padding: '52px 28px', borderTop: '1px solid rgba(255,255,255,.05)' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 }}>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: '#14D8C8', letterSpacing: '-.5px', marginBottom: 5 }}>my<span style={{ color: '#fff' }}>turn</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, userSelect: 'none', marginBottom: 15 }}>
+                <img src="/logo.png" alt="MyTurn Logo" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#14D8C8', letterSpacing: '-.5px' }}>
+                  My<span style={{ color: '#fff' }}>Turn</span>
+                </div>
+              </div>
               <div style={{ fontSize: 13, color: '#475569' }}>Built for Bharat&apos;s clinics</div>
             </div>
             <div style={{ display: 'flex', gap: 28, alignItems: 'center', flexWrap: 'wrap' }}>

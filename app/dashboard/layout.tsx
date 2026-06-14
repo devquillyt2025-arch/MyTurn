@@ -52,7 +52,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className={styles.page}>
       {/* Topbar */}
       <div className={styles.topbar}>
-        <div className={styles.logo}>MyTurnApp <span>/</span></div>
+        <div className={styles.logo} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src="/logo.png" alt="MyTurn Logo" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
+          MyTurn <span>/</span>
+        </div>
         <div className={styles.topbarSep}></div>
         <div className={styles.topbarClinic}>{clinicName || 'Set up your clinic'}</div>
         <div className={styles.topbarRight}>

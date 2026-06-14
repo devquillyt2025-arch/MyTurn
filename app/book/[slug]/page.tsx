@@ -188,7 +188,7 @@ export default function BookPage() {
           };
           setClinicId(data.id);
           setClinic(clinicData);
-          if (data.doctor_name) document.title = `MyTurnApp — Book with ${data.doctor_name}`;
+          if (data.doctor_name) document.title = `MyTurn — Book with ${data.doctor_name}`;
 
           // Select the first working day in the next 7 days
           const workingDays: string[] = data.days || [];
@@ -387,7 +387,7 @@ export default function BookPage() {
           The booking link you followed does not match any registered clinic.
         </div>
         <a href="/" style={{ marginTop: 8, color: 'var(--teal)', fontSize: 14, textDecoration: 'none', fontWeight: 500 }}>
-          ← Back to MyTurnApp
+          ← Back to MyTurn
         </a>
       </div>
     );
