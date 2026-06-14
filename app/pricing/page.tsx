@@ -14,7 +14,7 @@ const PLANS = [
   {
     id: 'basic' as const,
     name: 'Basic',
-    price: '₹399',
+    price: '₹999',
     period: '/month',
     description: 'For growing clinics ready to go unlimited',
     features: [
@@ -32,7 +32,7 @@ const PLANS = [
   {
     id: 'pro' as const,
     name: 'Pro',
-    price: '₹799',
+    price: '₹1999',
     period: '/month',
     description: 'For clinics that want the complete experience',
     features: [
@@ -121,7 +121,7 @@ export default function PricingPage() {
       return;
     }
 
-    const planLabel = plan === 'basic' ? 'Basic — ₹399/month' : 'Pro — ₹799/month';
+    const planLabel = plan === 'basic' ? 'Basic — ₹999/month' : 'Pro — ₹1999/month';
 
     const rzp = new window.Razorpay({
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,

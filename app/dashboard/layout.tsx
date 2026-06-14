@@ -40,7 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/auth/login');
+    router.push('/');
   }
 
   function isActive(href: string, exact = false) {

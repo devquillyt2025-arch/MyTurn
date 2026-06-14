@@ -347,7 +347,7 @@ const IconArrow = () => (
 export default function LandingPage() {
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes blob1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(60px,-80px) scale(1.12)}66%{transform:translate(-45px,55px) scale(.94)}}
         @keyframes blob2{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-70px,65px) scale(1.08)}66%{transform:translate(55px,-55px) scale(.96)}}
         @keyframes blob3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(35px,-60px) scale(1.15)}}
@@ -377,7 +377,7 @@ export default function LandingPage() {
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:5px;background:#080B14}
         ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
-      `}</style>
+      ` }} />
 
       <div style={{
         background: `
