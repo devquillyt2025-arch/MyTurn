@@ -291,11 +291,11 @@ function Nav() {
       WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
       transition: 'background .3s, backdrop-filter .3s',
     }}>
-      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px', height: '100%', display: 'flex', alignItems: 'center', gap: 40 }}>
+      <div className="lp-nav-inner" style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px', height: '100%', display: 'flex', alignItems: 'center', gap: 40 }}>
         <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-.5px', userSelect: 'none', color: '#14D8C8' }}>
           my<span style={{ color: '#fff' }}>turn</span>
         </div>
-        <div style={{ display: 'flex', gap: 32, flex: 1 }}>
+        <div className="lp-nav-links" style={{ display: 'flex', gap: 32, flex: 1 }}>
           {(['#features', '#how-it-works', '#pricing'] as const).map((href, i) => {
             const labels = ['Features', 'How it Works', 'Pricing'];
             return (
@@ -366,12 +366,23 @@ export default function LandingPage() {
         @keyframes qtBar{0%,100%{opacity:1}50%{opacity:.4}}
         @keyframes qtSignal{0%,100%{opacity:1}50%{opacity:.5}}
         .bento-grid{display:grid;gap:18px;grid-template-columns:1fr;}
+        @media (max-width:859px){
+          .bento-grid > *{grid-area:auto !important;}
+        }
         @media (min-width:860px){
           .bento-grid{
             grid-template-columns:repeat(3,1fr);
             grid-auto-rows:minmax(190px,auto);
             grid-template-areas:"card1 card1 card2" "card3 card4 card4";
           }
+        }
+        @media (max-width:768px){
+          .lp-nav-inner{gap:16px !important;padding:0 18px !important;justify-content:space-between !important;}
+          .lp-nav-links{display:none !important;}
+          .lp-hero-grid{grid-template-columns:1fr !important;gap:0 !important;}
+          .lp-hero-visual{display:none !important;}
+          .lp-3col{grid-template-columns:1fr !important;}
+          .lp-2col{grid-template-columns:1fr !important;}
         }
         html{scroll-behavior:smooth}
         *{box-sizing:border-box}
@@ -408,7 +419,7 @@ export default function LandingPage() {
           }} />
 
           <div style={{ maxWidth: 1180, margin: '0 auto', width: '100%', position: 'relative', zIndex: 2 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 72, alignItems: 'center' }}>
+            <div className="lp-hero-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 72, alignItems: 'center' }}>
 
               {/* ── Left copy ── */}
               <div>
@@ -495,7 +506,7 @@ export default function LandingPage() {
               </div>
 
               {/* ── Right: floating cards ── */}
-              <div style={{ position: 'relative', height: 500 }}>
+              <div className="lp-hero-visual" style={{ position: 'relative', height: 500 }}>
                 {/* Queue Live */}
                 <div className="card-float-0" style={{ position: 'absolute', top: 20, left: 0, width: 258 }}>
                   <div style={{ ...glass, padding: '20px 22px', boxShadow: '0 0 30px rgba(13,148,136,.2), 0 24px 64px rgba(0,0,0,.55)' }}>
@@ -581,7 +592,7 @@ export default function LandingPage() {
                 </motion.h2>
               </div>
             </Reveal>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
+            <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
               <StepCard step="01" Icon={IconQR}    title="Clinic generates a QR"       desc="Doctor sets up a clinic profile and generates a unique QR code in under 2 minutes. No hardware required." delay={0} />
               <StepCard step="02" Icon={IconPhone} title="Patient scans & joins queue"  desc="Patient scans the code with any phone camera — no app, no sign-up. They're added to the live queue instantly." delay={0.15} />
               <StepCard step="03" Icon={IconBell}  title="Notified when it's their turn" desc="Live token updates on their phone. Wait comfortably — outside, in their car, or at a nearby café." delay={0.3} />
@@ -636,7 +647,7 @@ export default function LandingPage() {
           borderBottom: '1px solid rgba(255,255,255,.05)',
         }}>
           <div style={{ maxWidth: 900, margin: '0 auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 40, textAlign: 'center' }}>
+            <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 40, textAlign: 'center' }}>
               {([
                 { to: 500,   suffix: '+',    label: 'Clinics using MyTurn', note: 'and growing every day' },
                 { to: 10000, suffix: '+',    label: 'Patients served',       note: 'across India' },
@@ -674,7 +685,7 @@ export default function LandingPage() {
                 <p style={{ fontSize: 16, color: '#94A3B8', marginTop: 16, fontWeight: 300 }}>Start free. Upgrade when you&apos;re ready. No contracts.</p>
               </div>
             </Reveal>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 22 }}>
+            <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 22 }}>
               {/* Free */}
               <Reveal delay={0.05}>
                 <div style={{ ...glass, padding: '40px 36px', height: '100%', cursor: 'pointer', transition: 'transform .2s, box-shadow .2s' }}
