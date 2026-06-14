@@ -1465,3 +1465,89 @@
 :global(html[data-theme="light"]) .monthCellToday {
   background: rgba(13,148,136,0.08);
 }
+
+/* ═══════════════════════════════════════════════════
+   Mobile responsiveness — off-canvas sidebar + fluid grids
+   (desktop layout above is unchanged)
+   ═══════════════════════════════════════════════════ */
+
+/* Hamburger toggle — hidden on desktop, shown in topbar on mobile */
+.hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.hamburger:hover { background: var(--surface2); color: var(--text); border-color: var(--teal-border); }
+.hamburger svg { width: 18px; height: 18px; }
+
+/* Dark backdrop behind the open drawer — hidden on desktop */
+.backdrop {
+  display: none;
+  position: fixed;
+  inset: 56px 0 0 0;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 99;
+}
+
+@media (max-width: 768px) {
+  /* Single column — main content takes the full width */
+  .page { grid-template-columns: 1fr; }
+
+  /* Keep topbar (and its hamburger) above the drawer + backdrop */
+  .topbar { position: relative; z-index: 110; padding: 0 16px; gap: 10px; }
+  .hamburger { display: flex; }
+  .topbarSep { display: none; }
+  .topbarClinic {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Sidebar slides in from the left as an off-canvas drawer */
+  .sidebar {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    bottom: 0;
+    width: 240px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 100;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+  }
+  .sidebarOpen { transform: translateX(0); }
+
+  .backdrop { display: block; }
+  .backdropOpen { opacity: 1; pointer-events: auto; }
+
+  /* Tighter padding; prevent horizontal overflow */
+  .main { padding: 20px 16px; min-width: 0; }
+
+  /* Collapse multi-column grids so cards wrap instead of being cut off */
+  .pageHeader { flex-direction: column; gap: 12px; }
+  .statsRow { grid-template-columns: repeat(2, 1fr); }
+  .grid2col { grid-template-columns: 1fr; }
+  .analyticsGrid { grid-template-columns: repeat(2, 1fr); }
+  .settingsFormGrid,
+  .settingsGrid,
+  .scheduleGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  /* Stack stat cards fully on small phones */
+  .statsRow,
+  .analyticsGrid { grid-template-columns: 1fr; }
+}

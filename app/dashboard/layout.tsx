@@ -13,6 +13,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { theme, toggleTheme } = useTheme();
   const [clinicName, setClinicName] = useState('');
   const [doctorPlan, setDoctorPlan] = useState('free');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close the mobile drawer whenever the route changes
+  useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -52,6 +56,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className={styles.page}>
       {/* Topbar */}
       <div className={styles.topbar}>
+        <button
+          className={styles.hamburger}
+          onClick={() => setSidebarOpen(v => !v)}
+          aria-label="Toggle menu"
+        >
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <path d="M2 4h12M2 8h12M2 12h12"/>
+          </svg>
+        </button>
         <div className={styles.logo}>MyTurnApp <span>/</span></div>
         <div className={styles.topbarSep}></div>
         <div className={styles.topbarClinic}>{clinicName || 'Set up your clinic'}</div>
@@ -79,8 +92,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
 
+      {/* Backdrop — only visible on mobile when the drawer is open */}
+      <div
+        className={`${styles.backdrop} ${sidebarOpen ? styles.backdropOpen : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
       {/* Sidebar */}
-      <div className={styles.sidebar}>
+      <div className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.sidebarNav}>
           <div className={styles.sidebarSection}>
             {([
