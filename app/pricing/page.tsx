@@ -90,7 +90,8 @@ export default function PricingPage() {
   async function handleSubscribe(plan: 'basic' | 'pro') {
     if (currentPlan === plan) return;
 
-    if (!rzpReady) {
+    const razorpayLoaded = rzpReady || (typeof window !== 'undefined' && typeof window.Razorpay !== 'undefined');
+    if (!razorpayLoaded) {
       toast.error('Payment system is still loading — please try again in a moment.');
       return;
     }
@@ -150,6 +151,8 @@ export default function PricingPage() {
     <>
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+        onReady={() => setRzpReady(true)}
         onLoad={() => setRzpReady(true)}
       />
 

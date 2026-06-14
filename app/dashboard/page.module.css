@@ -1466,6 +1466,23 @@
   background: rgba(13,148,136,0.08);
 }
 
+/* ─── Analytics charts row (was inline grid) ────── */
+.analyticsCharts {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  margin-bottom: 20px;
+  align-items: start;
+}
+
+/* ─── Profile two-column layout (was inline grid) ── */
+.profileGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
 /* ═══════════════════════════════════════════════════
    Mobile responsiveness — off-canvas sidebar + fluid grids
    (desktop layout above is unchanged)
@@ -1533,17 +1550,45 @@
   .backdrop { display: block; }
   .backdropOpen { opacity: 1; pointer-events: auto; }
 
-  /* Tighter padding; prevent horizontal overflow */
-  .main { padding: 20px 16px; min-width: 0; }
+  /* Tighter padding (px-4 py-4); prevent horizontal overflow */
+  .main { padding: 16px; min-width: 0; }
+
+  /* Header: hide the Upgrade button on mobile (clinic name already truncates) */
+  .upgradeLink { display: none; }
+
+  /* Page heading scales down (≈ text-2xl) */
+  .pageTitle { font-size: 22px; }
+
+  /* Header action groups: wrap and stretch full-width */
+  .pageHeader { flex-direction: column; gap: 12px; align-items: stretch; }
+  .pageHeader > div:last-child { width: 100%; flex-wrap: wrap; }
+  .pageHeader > div:last-child > * { flex: 1 1 auto; justify-content: center; }
 
   /* Collapse multi-column grids so cards wrap instead of being cut off */
-  .pageHeader { flex-direction: column; gap: 12px; }
   .statsRow { grid-template-columns: repeat(2, 1fr); }
   .grid2col { grid-template-columns: 1fr; }
   .analyticsGrid { grid-template-columns: repeat(2, 1fr); }
+  .analyticsCharts,
+  .profileGrid,
   .settingsFormGrid,
   .settingsGrid,
   .scheduleGrid { grid-template-columns: 1fr; }
+
+  /* Compact stat cards (p-3, smaller number/label) */
+  .statsRow,
+  .analyticsGrid { gap: 12px; }
+  .statCard { padding: 12px 14px; }
+  .statVal { font-size: 24px; }
+  .statLabel { font-size: 11px; }
+
+  /* Profile: center doctor hero, stack form rows full-width */
+  .profileHero { flex-direction: column; text-align: center; }
+  .profileBadges { justify-content: center; }
+  .formRow { grid-template-columns: 1fr; gap: 6px; }
+
+  /* Schedule: let week/month nav and the time column wrap/hold */
+  .weekNav { flex-wrap: wrap; }
+  .timeCol { flex-shrink: 0; }
 }
 
 @media (max-width: 480px) {

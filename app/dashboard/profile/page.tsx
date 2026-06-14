@@ -56,7 +56,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,alignItems:'start'}}>
+      <div className={styles.profileGrid}>
         <div className={styles.card}>
           <div className={styles.profileHero}>
             <div className={styles.profileAvatarLg}>{doctorInitials || '?'}</div>

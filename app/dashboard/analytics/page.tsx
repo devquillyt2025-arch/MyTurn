@@ -64,7 +64,7 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:20,marginBottom:20,alignItems:'start'}}>
+      <div className={styles.analyticsCharts}>
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1.5" y="8.5" width="3" height="6" rx="1"/><rect x="6.5" y="5.5" width="3" height="9" rx="1"/><rect x="11.5" y="2.5" width="3" height="12" rx="1"/></svg>

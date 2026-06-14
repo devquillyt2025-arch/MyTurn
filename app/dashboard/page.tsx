@@ -255,7 +255,7 @@ export default function DashboardPage() {
               />
             </div>
           </div>
-          <a href="#" className={styles.upgradeCta}>Upgrade to Basic for unlimited bookings →</a>
+          <Link href="/pricing" className={styles.upgradeCta}>Upgrade to Basic for unlimited bookings →</Link>
         </div>
       )}
 
