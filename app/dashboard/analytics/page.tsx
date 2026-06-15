@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import styles from '../page.module.css';
 import { createClient } from '@/lib/supabase/client';
+import toast from 'react-hot-toast';
 
 const WEEK_DATA = [
   { day: 'Mon', count: 9 }, { day: 'Tue', count: 12 }, { day: 'Wed', count: 8 },
@@ -18,8 +19,56 @@ const PEAK_DATA = [
 const weekMax = Math.max(...WEEK_DATA.map(d => d.count));
 const peakMax = Math.max(...PEAK_DATA.map(d => d.count));
 
+const SUMMARY = [
+  { label: 'Total patients (7d)', val: '74',   cls: 'teal',  change: '↑ 12% vs last week',  changeColor: '' },
+  { label: 'Avg patients/day',    val: '10.6', cls: 'green', change: '↑ On track',          changeColor: '' },
+  { label: 'Avg wait time',       val: '18m',  cls: '',      change: '−3m vs usual',         changeColor: 'var(--teal)' },
+  { label: 'No-shows',            val: '4',    cls: 'red',   change: '5.4% rate',            changeColor: 'var(--red)' },
+] as const;
+
+/** Quote a CSV cell if it contains a comma, quote, or newline. */
+function csvCell(v: string | number): string {
+  const s = String(v ?? '');
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
 export default function AnalyticsPage() {
   const [clinicName, setClinicName] = useState('');
+
+  function exportCsv() {
+    const rows: string[] = [];
+    rows.push('MyTurn Analytics Export');
+    rows.push(`Clinic,${csvCell(clinicName || '—')}`);
+    rows.push(`Generated,${csvCell(new Date().toLocaleString('en-IN'))}`);
+    rows.push('Range,Last 7 days');
+    rows.push('');
+    rows.push('Summary');
+    rows.push('Metric,Value');
+    SUMMARY.forEach(s => rows.push(`${csvCell(s.label)},${csvCell(s.val)}`));
+    rows.push('');
+    rows.push('Patients per day');
+    rows.push('Day,Count');
+    WEEK_DATA.forEach(d => rows.push(`${csvCell(d.day)},${d.count}`));
+    rows.push('');
+    rows.push('Peak hour distribution');
+    rows.push('Hour,Count');
+    PEAK_DATA.forEach(d => rows.push(`${csvCell(d.label)},${d.count}`));
+
+    // Prepend a UTF-8 BOM so Excel renders the – / ↑ characters correctly.
+    const csv = '﻿' + rows.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = (clinicName || 'clinic').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const date = new Date().toISOString().split('T')[0];
+    a.href = url;
+    a.download = `myturn-analytics-${safeName || 'clinic'}-${date}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Analytics exported');
+  }
 
   useEffect(() => {
     const supabase = createClient();
@@ -45,23 +94,21 @@ export default function AnalyticsPage() {
         </div>
         <div style={{display:'flex',gap:10}}>
           <button className={styles.actionBtn}>This week</button>
-          <button className={styles.actionBtn}>Export CSV</button>
+          <button className={styles.actionBtn} onClick={exportCsv}>Export CSV</button>
         </div>
       </div>
 
       <div className={styles.analyticsGrid}>
-        {[
-          { label: 'Total patients (7d)', val: '74', cls: styles.teal, change: '↑ 12% vs last week' },
-          { label: 'Avg patients/day', val: '10.6', cls: styles.green, change: '↑ On track' },
-          { label: 'Avg wait time', val: '18m', cls: '', change: '−3m vs usual', changeColor: 'var(--teal)' },
-          { label: 'No-shows', val: '4', cls: styles.red, change: '5.4% rate', changeColor: 'var(--red)' },
-        ].map(s => (
-          <div key={s.label} className={styles.statCard}>
-            <div className={styles.statLabel}>{s.label}</div>
-            <div className={`${styles.statVal} ${s.cls}`} style={s.cls ? {} : {fontSize:28}}>{s.val}</div>
-            <div className={styles.statChange} style={s.changeColor ? {color:s.changeColor} : {}}>{s.change}</div>
-          </div>
-        ))}
+        {SUMMARY.map(s => {
+          const clsName = s.cls ? (styles[s.cls as keyof typeof styles] ?? '') : '';
+          return (
+            <div key={s.label} className={styles.statCard}>
+              <div className={styles.statLabel}>{s.label}</div>
+              <div className={`${styles.statVal} ${clsName}`} style={clsName ? {} : {fontSize:28}}>{s.val}</div>
+              <div className={styles.statChange} style={s.changeColor ? {color:s.changeColor} : {}}>{s.change}</div>
+            </div>
+          );
+        })}
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:20,marginBottom:20,alignItems:'start'}}>

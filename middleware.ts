@@ -37,8 +37,9 @@ export async function middleware(request: NextRequest) {
 
     const { pathname } = request.nextUrl;
 
-    // Protect /dashboard — redirect unauthenticated visitors to login
-    if (pathname.startsWith('/dashboard') && !user) {
+    // Protect /dashboard and /admin — redirect unauthenticated visitors to login.
+    // The /admin allowlist (ADMIN_EMAILS) is enforced in the page itself.
+    if ((pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) && !user) {
       const loginUrl = request.nextUrl.clone();
       loginUrl.pathname = '/auth/login';
       return NextResponse.redirect(loginUrl);

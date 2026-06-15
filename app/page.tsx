@@ -661,7 +661,7 @@ export default function LandingPage() {
 
         {/* ═══ PRICING ══════════════════════════════════════════════ */}
         <section id="pricing" style={{ padding: '110px 28px', borderTop: '1px solid rgba(255,255,255,.05)' }}>
-          <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ maxWidth: 1140, margin: '0 auto' }}>
             <Reveal>
               <div style={{ textAlign: 'center', marginBottom: 72 }}>
                 <motion.div
@@ -677,7 +677,7 @@ export default function LandingPage() {
                 <p style={{ fontSize: 16, color: '#94A3B8', marginTop: 16, fontWeight: 300 }}>Start free. Upgrade when you&apos;re ready. No contracts.</p>
               </div>
             </Reveal>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 22 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 22 }}>
               {/* Free */}
               <Reveal delay={0.05}>
                 <div style={{ ...glass, padding: '40px 36px', height: '100%', cursor: 'pointer', transition: 'transform .2s, box-shadow .2s' }}
@@ -705,7 +705,7 @@ export default function LandingPage() {
                 </div>
               </Reveal>
 
-              {/* Pro */}
+              {/* Basic */}
               <Reveal delay={0.12}>
                 <div style={{
                   background: 'rgba(13,148,136,.09)', border: '1px solid rgba(20,216,200,.35)',
@@ -717,14 +717,14 @@ export default function LandingPage() {
                   onMouseLeave={e => { const d = e.currentTarget as HTMLDivElement; d.style.transform = 'none'; d.style.boxShadow = '0 0 80px rgba(13,148,136,.18)'; }}
                 >
                   <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(90deg,#0D9488,#14D8C8)', borderRadius: 99, padding: '5px 18px', fontSize: 11, fontWeight: 800, color: '#080B14', whiteSpace: 'nowrap' }}>✦ Most Popular</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#14D8C8', letterSpacing: '.5px', marginBottom: 10 }}>Pro</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#14D8C8', letterSpacing: '.5px', marginBottom: 10 }}>Basic</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
                     <span style={{ fontSize: 52, fontWeight: 900, letterSpacing: '-2.5px', color: '#fff', lineHeight: 1 }}>₹999</span>
                     <span style={{ fontSize: 14, color: '#94A3B8' }}>/month</span>
                   </div>
                   <div style={{ fontSize: 14, color: '#475569', marginBottom: 32 }}>Billed monthly — cancel anytime</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {['Unlimited doctors', 'Unlimited patients / day', 'Advanced analytics dashboard', 'WhatsApp appointment alerts', 'Multi-doctor support', 'Priority support'].map(f => (
+                    {['Up to 3 doctors', 'Up to 100 patients / day', 'QR code for your clinic', 'Advanced analytics dashboard', 'WhatsApp appointment alerts', 'Email support'].map(f => (
                       <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#E2E8F0' }}>
                         <span style={{ color: '#14D8C8', flexShrink: 0 }}><IconCheck /></span>{f}
                       </div>
@@ -738,6 +738,36 @@ export default function LandingPage() {
                   }}
                     onMouseEnter={e => { e.currentTarget.style.opacity = '.85'; e.currentTarget.style.boxShadow = '0 0 50px rgba(13,148,136,.65)'; }}
                     onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.boxShadow = '0 0 36px rgba(13,148,136,.45)'; }}
+                  >Start Basic Trial</Link>
+                </div>
+              </Reveal>
+
+              {/* Pro */}
+              <Reveal delay={0.18}>
+                <div style={{ ...glass, padding: '40px 36px', height: '100%', cursor: 'pointer', transition: 'transform .2s, box-shadow .2s' }}
+                  onMouseEnter={e => { const d = e.currentTarget as HTMLDivElement; d.style.transform = 'scale(1.02)'; d.style.boxShadow = '0 8px 40px rgba(0,0,0,.3)'; }}
+                  onMouseLeave={e => { const d = e.currentTarget as HTMLDivElement; d.style.transform = 'none'; d.style.boxShadow = 'none'; }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#94A3B8', letterSpacing: '.5px', marginBottom: 10 }}>Pro</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
+                    <span style={{ fontSize: 52, fontWeight: 900, letterSpacing: '-2.5px', color: '#fff', lineHeight: 1 }}>₹1999</span>
+                    <span style={{ fontSize: 14, color: '#94A3B8' }}>/month</span>
+                  </div>
+                  <div style={{ fontSize: 14, color: '#475569', marginBottom: 32 }}>Billed monthly — cancel anytime</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {['Unlimited doctors', 'Unlimited patients / day', 'Advanced analytics dashboard', 'WhatsApp appointment alerts', 'Multi-doctor support', 'Priority support'].map(f => (
+                      <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#CBD5E1' }}>
+                        <span style={{ color: '#0D9488', flexShrink: 0 }}><IconCheck /></span>{f}
+                      </div>
+                    ))}
+                  </div>
+                  <Link href="/auth/login" style={{
+                    display: 'block', textAlign: 'center', marginTop: 36,
+                    border: '1px solid rgba(255,255,255,.15)', borderRadius: 11, padding: 14,
+                    fontSize: 14, fontWeight: 600, color: '#fff', textDecoration: 'none', transition: 'all .15s',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.3)'; e.currentTarget.style.background = 'rgba(255,255,255,.05)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.15)'; e.currentTarget.style.background = 'transparent'; }}
                   >Start Pro Trial</Link>
                 </div>
               </Reveal>

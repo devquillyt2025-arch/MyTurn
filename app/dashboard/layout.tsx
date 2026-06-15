@@ -37,6 +37,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     });
   }, []);
 
+  // Live-update the topbar clinic name when it's changed in Settings
+  useEffect(() => {
+    function onClinicUpdated(e: Event) {
+      const name = (e as CustomEvent<{ name: string }>).detail?.name;
+      if (typeof name === 'string') setClinicName(name);
+    }
+    window.addEventListener('clinic:updated', onClinicUpdated);
+    return () => window.removeEventListener('clinic:updated', onClinicUpdated);
+  }, []);
+
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -54,7 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className={styles.topbar}>
         <div className={styles.logo} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <img src="/logo.png" alt="MyTurn Logo" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
-          MyTurn <span>/</span>
+          <span>My<span className={styles.logoTurn}>Turn</span></span> <span className={styles.logoSlash}>/</span>
         </div>
         <div className={styles.topbarSep}></div>
         <div className={styles.topbarClinic}>{clinicName || 'Set up your clinic'}</div>

@@ -133,6 +133,7 @@ export default function SettingsPage() {
       toast.error(err.message);
     } else {
       setSlug(newSlug);
+      window.dispatchEvent(new CustomEvent('clinic:updated', { detail: { name: payload.name } }));
       toast.success('Clinic profile saved');
     }
     setSaving(false);

@@ -28,7 +28,8 @@
   color: var(--teal);
   letter-spacing: -0.5px;
 }
-.logo span { color: var(--text); opacity: 0.5; }
+.logoTurn { color: var(--text); }
+.logoSlash { color: var(--text); opacity: 0.5; }
 .topbarSep { width: 1px; height: 20px; background: var(--border2); margin: 0 4px; }
 .topbarClinic { font-size: 13px; color: var(--muted); }
 .topbarRight { margin-left: auto; display: flex; align-items: center; gap: 12px; }

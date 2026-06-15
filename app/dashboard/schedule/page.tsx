@@ -16,22 +16,6 @@ const SLOT_DATA = [
   { label: '4–5 PM',   booked: 1, total: 4 },
 ];
 
-const SCHEDULE_SLOTS = [
-  { time: '9:00 AM',  events: [{ name: 'Ramesh Babu', status: 'done' }, { name: 'Sunita Rao', status: 'done' }] },
-  { time: '9:30 AM',  events: [{ name: 'Kiran Mehta', status: 'done' }] },
-  { time: '9:45 AM',  events: [{ name: 'Priya Krishnan', status: 'current' }] },
-  { time: '10:00 AM', events: [{ name: 'Vikram Sharma', status: 'upcoming' }] },
-  { time: '10:15 AM', events: [{ name: 'Ananya Pillai', status: 'upcoming' }] },
-  { time: '10:30 AM', events: [{ name: 'Deepak Nair', status: 'upcoming' }] },
-  { time: '10:45 AM', events: [{ name: 'Meghna Joshi', status: 'upcoming' }] },
-  { time: '11:00 AM', events: [{ name: 'Suresh Kumar', status: 'upcoming' }] },
-  { time: '11:15 AM', events: [{ name: 'Lavanya S.', status: 'upcoming' }] },
-  { time: '11:30 AM', events: [{ name: 'Ravi Teja', status: 'upcoming' }] },
-  { time: '12:00 PM', events: [{ name: 'Nalini Iyer', status: 'upcoming' }] },
-  { time: '1:00 PM',  events: [] },
-  { time: '2:00 PM',  events: [{ name: '—', status: 'empty' }] },
-];
-
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const DAY_NAMES  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -151,6 +135,32 @@ function bookingMinutes(b: Booking): number {
   return d.getHours() * 60 + d.getMinutes();
 }
 
+/** "9:45 AM" style label for a booking's time */
+function bookingTimeLabel(b: Booking): string {
+  const d   = new Date(b.appointment_time ?? b.created_at);
+  const h   = d.getHours();
+  const m   = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12  = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+/** Map a DB status to the day-view event CSS class */
+function dayStatusClass(s?: string): 'done' | 'current' | 'upcoming' {
+  if (s === 'current' || s === 'in_session') return 'current';
+  if (s === 'done'    || s === 'completed')  return 'done';
+  return 'upcoming';
+}
+
+/** "9–10 AM" style label for an hour bucket (h in 0–23) */
+function hourRangeLabel(h: number): string {
+  const ampm  = h >= 12 ? 'PM' : 'AM';
+  const lo    = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  const hiH   = h + 1;
+  const hi    = hiH > 12 ? hiH - 12 : hiH === 0 ? 12 : hiH;
+  return `${lo}–${hi} ${ampm}`;
+}
+
 function patientName(b: Booking) { return b.patient_name ?? 'Patient'; }
 
 function statusLabel(s?: string) {
@@ -185,6 +195,11 @@ function ScheduleContent() {
   const [clinicId,      setClinicId]      = useState('');
   const [dailyCapacity, setDailyCapacity] = useState(DEFAULT_CAPACITY);
 
+  // Day data (selected date from ?date=, else today)
+  const [dayBookings,  setDayBookings]  = useState<Booking[]>([]);
+  const [dayLoading,   setDayLoading]   = useState(false);
+  const [dayFetched,   setDayFetched]   = useState(false);
+
   // Week data
   const [bookings,     setBookings]     = useState<Booking[]>([]);
 
@@ -212,6 +227,28 @@ function ScheduleContent() {
         });
     });
   }, []);
+
+  // ── Fetch the selected day's bookings ──────────────────────────────────
+  const dateParam = searchParams.get('date');
+  useEffect(() => {
+    if (view !== 'day' || !clinicId) return;
+    let cancelled = false;
+    const iso = dateParam ?? toLocalIsoDate(new Date());
+    setDayLoading(true);
+    setDayFetched(false);
+    const supabase = createClient();
+    supabase.from('bookings').select('*')
+      .eq('clinic_id', clinicId)
+      .gte('created_at', `${iso}T00:00:00`)
+      .lte('created_at', `${iso}T23:59:59`)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setDayBookings((data ?? []).filter(b => bookingDate(b) === iso));
+        setDayLoading(false);
+        setDayFetched(true);
+      });
+    return () => { cancelled = true; };
+  }, [view, clinicId, dateParam]);
 
   // ── Fetch week bookings (full objects needed for event blocks) ─────────
   useEffect(() => {
@@ -294,6 +331,37 @@ function ScheduleContent() {
 
   // ── Derived ────────────────────────────────────────────────────────────
   const today     = new Date();
+
+  // Day view — selected date + grouped timetable + hourly slot fill
+  const selectedDate    = dateParam ? new Date(`${dateParam}T00:00:00`) : today;
+  const isSelectedToday = isSameDay(selectedDate, today);
+  const dayDateLabel    = isSelectedToday
+    ? 'Today'
+    : `${DAY_NAMES[(selectedDate.getDay() + 6) % 7]}, ${selectedDate.getDate()} ${MONTH_SHORT[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+
+  const dayTimetable: { time: string; events: { name: string; status: string }[] }[] = [];
+  [...dayBookings].sort((a, b) => bookingMinutes(a) - bookingMinutes(b)).forEach(b => {
+    const label = bookingTimeLabel(b);
+    let group = dayTimetable.find(g => g.time === label);
+    if (!group) { group = { time: label, events: [] }; dayTimetable.push(group); }
+    group.events.push({ name: patientName(b), status: dayStatusClass(b.status) });
+  });
+
+  const hourBuckets: Record<number, number> = {};
+  dayBookings.forEach(b => {
+    const h = Math.floor(bookingMinutes(b) / 60);
+    hourBuckets[h] = (hourBuckets[h] ?? 0) + 1;
+  });
+  const maxHourCount = Math.max(1, ...Object.values(hourBuckets));
+  const slotFill = Object.keys(hourBuckets).map(Number).sort((a, b) => a - b)
+    .map(h => ({ label: hourRangeLabel(h), booked: hourBuckets[h], total: maxHourCount }));
+
+  function shiftDay(delta: number) {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + delta);
+    navigateToDay(d);
+  }
+
   const weekDays  = getWeekDays(weekOffset);
   const weekLabel = `${weekDays[0].getDate()} ${MONTH_SHORT[weekDays[0].getMonth()]} – ${weekDays[6].getDate()} ${MONTH_SHORT[weekDays[6].getMonth()]} ${weekDays[6].getFullYear()}`;
 
@@ -340,7 +408,7 @@ function ScheduleContent() {
         <div>
           <div className={styles.pageTitle}>Schedule</div>
           <div className={styles.pageSub}>
-            {view === 'day' ? 'Today · Slot capacity: 15' :
+            {view === 'day' ? `${dayDateLabel} · Slot capacity: ${dailyCapacity}` :
              view === 'week' ? weekLabel : monthLabel}
           </div>
         </div>
@@ -366,27 +434,42 @@ function ScheduleContent() {
 
       {/* ══ DAY VIEW ══════════════════════════════════════════════════════ */}
       {view === 'day' && (
+        <>
+        <div className={styles.weekNav}>
+          <button className={styles.actionBtn} onClick={() => shiftDay(-1)}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="14" height="14"><path d="M10 3L5 8l5 5"/></svg>
+            Prev day
+          </button>
+          <span className={styles.weekNavLabel}>{dayDateLabel}</span>
+          <button className={styles.actionBtn} onClick={() => shiftDay(1)}>
+            Next day
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="14" height="14"><path d="M6 3l5 5-5 5"/></svg>
+          </button>
+        </div>
         <div className={styles.scheduleGrid}>
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M2.5 5.5h11M5.5 2.5v2M10.5 2.5v2M3 2.5h10a1 1 0 011 1v9a1 1 0 01-1 1H3a1 1 0 01-1-1v-9a1 1 0 011-1z"/>
               </svg>
-              <span className={styles.cardTitle}>Today&apos;s timetable</span>
-              <span className={styles.cardSub}>12 booked / 15 capacity</span>
+              <span className={styles.cardTitle}>{isSelectedToday ? "Today's timetable" : 'Timetable'}</span>
+              <span className={styles.cardSub}>{dayBookings.length} booked / {dailyCapacity} capacity</span>
             </div>
-            {SCHEDULE_SLOTS.map(slot => (
+            {dayLoading ? (
+              <div className={`${styles.slotEvent} ${styles.empty}`} style={{ margin: '16px 20px' }}>Loading…</div>
+            ) : dayTimetable.length === 0 ? (
+              <div className={`${styles.slotEvent} ${styles.empty}`} style={{ margin: '16px 20px' }}>
+                {dayFetched ? 'No appointments for this day' : ''}
+              </div>
+            ) : dayTimetable.map(slot => (
               <div key={slot.time} className={styles.timeSlotRow}>
                 <div className={styles.timeCol}>{slot.time}</div>
                 <div className={styles.slotEvents}>
-                  {slot.events.length === 0
-                    ? <div className={`${styles.slotEvent} ${styles.empty}`}>No appointments</div>
-                    : slot.events.map((e, i) => (
-                      <div key={i} className={`${styles.slotEvent} ${styles[e.status as keyof typeof styles]}`}>
-                        {e.name}{e.status === 'done' ? ' ✓' : e.status === 'current' ? ' · In session' : ''}
-                      </div>
-                    ))
-                  }
+                  {slot.events.map((e, i) => (
+                    <div key={i} className={`${styles.slotEvent} ${styles[e.status as keyof typeof styles]}`}>
+                      {e.name}{e.status === 'done' ? ' ✓' : e.status === 'current' ? ' · In session' : ''}
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -411,12 +494,15 @@ function ScheduleContent() {
                   <rect x="1.5" y="8.5" width="3" height="6" rx="1"/><rect x="6.5" y="5.5" width="3" height="9" rx="1"/><rect x="11.5" y="2.5" width="3" height="12" rx="1"/>
                 </svg>
                 <span className={styles.cardTitle}>Slot fill</span>
-                <span className={styles.cardSub}>Today</span>
+                <span className={styles.cardSub}>{dayDateLabel}</span>
               </div>
-              <SlotBars data={slotConfig.filter(s => !s.blocked)} />
+              {slotFill.length === 0
+                ? <div className={`${styles.slotEvent} ${styles.empty}`} style={{ margin: '16px 20px' }}>No bookings</div>
+                : <SlotBars data={slotFill} />}
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* ══ WEEK VIEW (time-grid) ══════════════════════════════════════════ */}
