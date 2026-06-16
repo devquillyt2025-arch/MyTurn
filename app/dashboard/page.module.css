@@ -702,6 +702,29 @@
 .formInput::placeholder { color: var(--muted); }
 :global(html[data-theme="dark"]) .formInput::placeholder { color: #94a3b8; }
 
+/* ─── Profile: language tags + stacked fields ─────── */
+.fieldLabelBlock { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.langPill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--teal-dim); color: var(--teal);
+  border: 1px solid var(--teal-border);
+  border-radius: 20px; padding: 4px 6px 4px 12px; font-size: 12px; font-weight: 500;
+}
+.langPillX {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; border: none;
+  background: transparent; color: var(--teal); cursor: pointer; font-size: 14px; line-height: 1;
+}
+.langPillX:hover { background: rgba(0,0,0,0.15); }
+.langSuggest {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 8px; max-height: 184px; overflow-y: auto; z-index: 30;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+.langSuggestItem { padding: 8px 12px; font-size: 13px; color: var(--text); cursor: pointer; }
+.langSuggestItem:hover { background: var(--surface2); color: var(--teal); }
+
 /* ─── Day / duration chips ──────────────────────── */
 .chipRow {
   display: flex;
