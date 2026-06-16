@@ -1,6 +1,9 @@
 -- MyTurnApp schema
 -- Run this in the Supabase SQL editor to create all tables and enable RLS.
 
+-- digest()/encode() for strong qr_token generation, gen_random_uuid() for ids.
+create extension if not exists pgcrypto;
+
 -- ── Doctors (one row per registered doctor account) ──────────────
 create table doctors (
   id           uuid primary key references auth.users(id) on delete cascade,
@@ -21,6 +24,8 @@ create table clinics (
   phone         text not null,
   address       text,
   slug          text unique not null,
+  qr_token      text not null default encode(
+                  digest(gen_random_uuid()::text || gen_random_uuid()::text, 'sha256'), 'hex'),
   spec          text,
   qual          text,
   fee           text,
@@ -30,6 +35,9 @@ create table clinics (
   hours         jsonb   default '{}',
   created_at    timestamptz default now()
 );
+
+-- Opaque public QR token → /q/<qr_token> resolves to this clinic's booking page.
+create unique index if not exists idx_clinic_qr_token on clinics(qr_token);
 
 -- ── Slots ─────────────────────────────────────────────────────────
 create table slots (

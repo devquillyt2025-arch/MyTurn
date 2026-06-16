@@ -593,7 +593,11 @@
 @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 .pagePanel { display: none; animation: fadeIn 0.25s ease forwards; }
 .pagePanel.active { display: block; }
-.routePage { display: block; animation: fadeIn 0.25s ease forwards; }
+/* No `forwards`: retaining the final keyframe leaves a lingering
+   transform: translateY(0) on this wrapper, which creates a containing block
+   so position:fixed modals (.modalOverlay) anchor here instead of the
+   viewport — clipping the modal off-screen. */
+.routePage { display: block; animation: fadeIn 0.25s ease; }
 
 /* ── Theme toggle button ──────────────────────────── */
 .themeBtn {

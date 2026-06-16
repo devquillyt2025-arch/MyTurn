@@ -8,7 +8,11 @@ import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 
 type QStatus = 'done' | 'current' | 'waiting' | 'skipped';
-interface QItem { token: number; name: string; age: number; time: string; status: QStatus; }
+interface QItem { id: string; token: number; name: string; age: number; time: string; status: QStatus; }
+
+// DB stores 'called' for the patient currently being seen; the UI calls it 'current'.
+const DB_TO_Q: Record<string, QStatus> = { waiting: 'waiting', called: 'current', done: 'done', skipped: 'skipped' };
+const Q_TO_DB: Record<QStatus, string> = { waiting: 'waiting', current: 'called', done: 'done', skipped: 'skipped' };
 
 const SLOT_DATA = [
   { label: '9–10 AM',  booked: 4, total: 4 },
@@ -57,7 +61,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (!user) return;
       supabase
         .from('clinics')
@@ -94,23 +99,19 @@ export default function DashboardPage() {
 
           supabase
             .from('bookings')
-            .select('token_number, patient_name, status')
+            .select('id, token_number, patient_name, status')
             .eq('clinic_id', data.id)
+            .order('token_number')
             .then(({ data: bookings }) => {
-              if (!bookings || bookings.length === 0) return;
-              setQueue(prev => {
-                const existing = new Set(prev.map(p => p.token));
-                const incoming = bookings
-                  .filter(b => !existing.has(b.token_number))
-                  .map(b => ({
-                    token: b.token_number,
-                    name: b.patient_name || 'Unknown Patient',
-                    age: 0,
-                    time: '—',
-                    status: 'waiting' as QStatus,
-                  }));
-                return [...prev, ...incoming];
-              });
+              if (!bookings) return;
+              setQueue(bookings.map(b => ({
+                id: b.id,
+                token: b.token_number,
+                name: b.patient_name || 'Unknown Patient',
+                age: 0,
+                time: '—',
+                status: DB_TO_Q[b.status as string] ?? 'waiting',
+              })));
             });
         });
     });
@@ -157,28 +158,42 @@ export default function DashboardPage() {
   const waiting = queue.filter(p => p.status === 'waiting');
   const done = queue.filter(p => p.status === 'done');
 
+  // Persist status changes to the DB so they survive reload and show on the
+  // patients page. RLS ("bookings: owner manage") restricts this to the owner.
+  async function persistStatus(updates: { id: string; status: QStatus }[]) {
+    const supabase = createClient();
+    const results = await Promise.all(
+      updates
+        .filter(u => u.id)
+        .map(u => supabase.from('bookings').update({ status: Q_TO_DB[u.status] }).eq('id', u.id))
+    );
+    if (results.some(r => r.error)) toast.error('Could not save the change. Please retry.');
+  }
+
   function callNext() {
+    const cur = queue.find(p => p.status === 'current');
+    const nxt = queue.find(p => p.status === 'waiting');
+    if (!cur && !nxt) return;
     setIsFlipping(true);
     setTimeout(() => {
-      setQueue(prev => {
-        const next = [...prev];
-        const ci = next.findIndex(p => p.status === 'current');
-        const ni = next.findIndex(p => p.status === 'waiting');
-        if (ci !== -1) next[ci] = { ...next[ci], status: 'done' };
-        if (ni !== -1) next[ni] = { ...next[ni], status: 'current' };
-        return next;
-      });
+      setQueue(prev => prev.map(p => {
+        if (cur && p.id === cur.id) return { ...p, status: 'done' as QStatus };
+        if (nxt && p.id === nxt.id) return { ...p, status: 'current' as QStatus };
+        return p;
+      }));
       setIsFlipping(false);
     }, 160);
+    const updates: { id: string; status: QStatus }[] = [];
+    if (cur) updates.push({ id: cur.id, status: 'done' });
+    if (nxt) updates.push({ id: nxt.id, status: 'current' });
+    void persistStatus(updates);
   }
 
   function markDone() {
-    setQueue(prev => {
-      const next = [...prev];
-      const ci = next.findIndex(p => p.status === 'current');
-      if (ci !== -1) next[ci] = { ...next[ci], status: 'done' };
-      return next;
-    });
+    const cur = queue.find(p => p.status === 'current');
+    if (!cur) return;
+    setQueue(prev => prev.map(p => (p.id === cur.id ? { ...p, status: 'done' } : p)));
+    void persistStatus([{ id: cur.id, status: 'done' }]);
   }
 
   function skipCurrent() {
@@ -188,15 +203,17 @@ export default function DashboardPage() {
 
   function confirmSkip() {
     if (!skipTarget) return;
-    setQueue(prev => {
-      const next = [...prev];
-      const ci = next.findIndex(p => p.status === 'current');
-      if (ci !== -1) next[ci] = { ...next[ci], status: 'skipped' };
-      const ni = next.findIndex(p => p.status === 'waiting');
-      if (ni !== -1) next[ni] = { ...next[ni], status: 'current' };
-      return next;
-    });
-    toast(`Skipped ${skipTarget.name}`);
+    const cur = skipTarget;
+    const nxt = queue.find(p => p.status === 'waiting');
+    setQueue(prev => prev.map(p => {
+      if (p.id === cur.id) return { ...p, status: 'skipped' as QStatus };
+      if (nxt && p.id === nxt.id) return { ...p, status: 'current' as QStatus };
+      return p;
+    }));
+    const updates: { id: string; status: QStatus }[] = [{ id: cur.id, status: 'skipped' }];
+    if (nxt) updates.push({ id: nxt.id, status: 'current' });
+    void persistStatus(updates);
+    toast(`Skipped ${cur.name}`);
     setSkipTarget(null);
   }
 
@@ -204,7 +221,7 @@ export default function DashboardPage() {
     if (!newName.trim()) return;
     const nextToken = Math.max(...queue.map(p => p.token), 0) + 1;
     const timeStr = newTime.trim() || '—';
-    const entry: QItem = { token: nextToken, name: newName.trim(), age: parseInt(newAge) || 0, time: timeStr, status: 'waiting' };
+    const entry: QItem = { id: '', token: nextToken, name: newName.trim(), age: parseInt(newAge) || 0, time: timeStr, status: 'waiting' };
     setQueue(prev => [...prev, entry]);
     if (clinicId) {
       await fetch('/api/bookings', {

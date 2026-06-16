@@ -71,6 +71,22 @@ function bookingDate(b: Booking): string {
   return toLocalIsoDate(new Date(t));
 }
 
+type SlotRel = { date?: string; time?: string };
+type RawBooking = Booking & { slots?: SlotRel | SlotRel[] | null };
+
+/**
+ * The appointment date/time lives on the linked `slots` row, not on the booking.
+ * Project it onto `date` (for day bucketing) and `appointment_time` (a real
+ * timestamp so the timetable positions it by slot time). Walk-ins with no slot
+ * fall back to their creation time.
+ */
+function normalizeBooking(b: RawBooking): Booking {
+  const slot = (Array.isArray(b.slots) ? b.slots[0] : b.slots) ?? null;
+  const date = slot?.date ?? toLocalIsoDate(new Date(b.created_at));
+  const appointment_time = slot?.date && slot?.time ? `${slot.date}T${slot.time}:00` : b.appointment_time;
+  return { ...b, date, appointment_time };
+}
+
 function SlotBars({ data }: { data: typeof SLOT_DATA }) {
   return (
     <>
@@ -218,7 +234,8 @@ function ScheduleContent() {
   // ── Fetch clinic ID + capacity ─────────────────────────────────────────
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (!user) return;
       supabase.from('clinics').select('id, max_patients').eq('user_id', user.id).single()
         .then(({ data }) => {
@@ -237,16 +254,21 @@ function ScheduleContent() {
     setDayLoading(true);
     setDayFetched(false);
     const supabase = createClient();
-    supabase.from('bookings').select('*')
-      .eq('clinic_id', clinicId)
-      .gte('created_at', `${iso}T00:00:00`)
-      .lte('created_at', `${iso}T23:59:59`)
-      .then(({ data }) => {
-        if (cancelled) return;
-        setDayBookings((data ?? []).filter(b => bookingDate(b) === iso));
-        setDayLoading(false);
-        setDayFetched(true);
-      });
+    Promise.all([
+      // Bookings whose linked slot falls on this day
+      supabase.from('bookings').select('*, slots!inner(date, time)')
+        .eq('clinic_id', clinicId).eq('slots.date', iso),
+      // Walk-ins with no slot — bucket by creation date
+      supabase.from('bookings').select('*, slots(date, time)')
+        .eq('clinic_id', clinicId).is('slot_id', null)
+        .gte('created_at', `${iso}T00:00:00`).lte('created_at', `${iso}T23:59:59`),
+    ]).then(([booked, walkins]) => {
+      if (cancelled) return;
+      const rows = [...(booked.data ?? []), ...(walkins.data ?? [])].map(normalizeBooking);
+      setDayBookings(rows.filter(b => b.date === iso));
+      setDayLoading(false);
+      setDayFetched(true);
+    });
     return () => { cancelled = true; };
   }, [view, clinicId, dateParam]);
 
@@ -255,14 +277,18 @@ function ScheduleContent() {
     if (view !== 'week' || !clinicId) return;
     let cancelled = false;
     const days = getWeekDays(weekOffset);
-    const fromD = new Date(days[0]); fromD.setDate(fromD.getDate() - 1);
-    const toD   = new Date(days[6]); toD.setDate(toD.getDate() + 1);
+    const from = toLocalIsoDate(days[0]);
+    const to   = toLocalIsoDate(days[6]);
     const supabase = createClient();
-    supabase.from('bookings').select('*')
-      .eq('clinic_id', clinicId)
-      .gte('created_at', `${toLocalIsoDate(fromD)}T00:00:00`)
-      .lte('created_at', `${toLocalIsoDate(toD)}T23:59:59`)
-      .then(({ data }) => { if (!cancelled) setBookings(data ?? []); });
+    Promise.all([
+      supabase.from('bookings').select('*, slots!inner(date, time)')
+        .eq('clinic_id', clinicId).gte('slots.date', from).lte('slots.date', to),
+      supabase.from('bookings').select('*, slots(date, time)')
+        .eq('clinic_id', clinicId).is('slot_id', null)
+        .gte('created_at', `${from}T00:00:00`).lte('created_at', `${to}T23:59:59`),
+    ]).then(([booked, walkins]) => {
+      if (!cancelled) setBookings([...(booked.data ?? []), ...(walkins.data ?? [])].map(normalizeBooking));
+    });
     return () => { cancelled = true; };
   }, [view, clinicId, weekOffset]);
 
@@ -271,28 +297,31 @@ function ScheduleContent() {
     if (view !== 'month' || !clinicId) return;
     let cancelled = false;
     const cal = getMonthCalendar(monthOffset);
-    const fromD = new Date(cal[0][0].date); fromD.setDate(fromD.getDate() - 1);
-    const toD   = new Date(cal[cal.length - 1][6].date); toD.setDate(toD.getDate() + 1);
+    const from = toLocalIsoDate(cal[0][0].date);
+    const to   = toLocalIsoDate(cal[cal.length - 1][6].date);
 
     setMonthLoading(true);
     setMonthFetched(false);
     const supabase = createClient();
-    supabase.from('bookings')
-      .select('date, created_at')
-      .eq('clinic_id', clinicId)
-      .gte('created_at', `${toLocalIsoDate(fromD)}T00:00:00`)
-      .lte('created_at', `${toLocalIsoDate(toD)}T23:59:59`)
-      .then(({ data }) => {
-        if (cancelled) return;
-        const counts: Record<string, number> = {};
-        (data ?? []).forEach(b => {
-          const key = (b as Booking).date ?? toLocalIsoDate(new Date(b.created_at));
-          counts[key] = (counts[key] ?? 0) + 1;
-        });
-        setMonthCounts(counts);
-        setMonthLoading(false);
-        setMonthFetched(true);
+    Promise.all([
+      supabase.from('bookings').select('created_at, slots!inner(date)')
+        .eq('clinic_id', clinicId).gte('slots.date', from).lte('slots.date', to),
+      supabase.from('bookings').select('created_at, slots(date)')
+        .eq('clinic_id', clinicId).is('slot_id', null)
+        .gte('created_at', `${from}T00:00:00`).lte('created_at', `${to}T23:59:59`),
+    ]).then(([booked, walkins]) => {
+      if (cancelled) return;
+      const counts: Record<string, number> = {};
+      [...(booked.data ?? []), ...(walkins.data ?? [])].forEach(b => {
+        const raw = (b as RawBooking).slots;
+        const slot = (Array.isArray(raw) ? raw[0] : raw) ?? null;
+        const key = slot?.date ?? toLocalIsoDate(new Date(b.created_at));
+        counts[key] = (counts[key] ?? 0) + 1;
       });
+      setMonthCounts(counts);
+      setMonthLoading(false);
+      setMonthFetched(true);
+    });
     return () => { cancelled = true; };
   }, [view, clinicId, monthOffset]);
 
