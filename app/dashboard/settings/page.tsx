@@ -223,7 +223,7 @@ export default function SettingsPage() {
           <div className={styles.pageSub}>Clinic profile, schedule, and QR code</div>
         </div>
         {slug && (
-          <button className={styles.actionBtn} onClick={() => window.open(`/book/${slug}`, '_blank')}>
+          <button className={styles.actionBtn} onClick={() => window.open(`/walkin/${slug}`, '_blank')}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15"><path d="M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3M9 2h5v5M14 2l-7 7"/></svg>
             Preview booking page ↗
           </button>

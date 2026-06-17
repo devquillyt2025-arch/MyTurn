@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import styles from './page.module.css';
 import { BookingQRCode } from '../../components/BookingQRCode';
@@ -8,7 +8,8 @@ import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 
 type QStatus = 'done' | 'current' | 'waiting' | 'skipped';
-interface QItem { id: string; token: number; name: string; age: number; time: string; status: QStatus; }
+interface QItem { id: string; token: number; name: string; age: number; time: string; status: QStatus; source: string; slotTime: string; }
+interface PendingAppt { id: string; name: string; slotTime: string; slotTimeRaw: string; assignedToken: number | null; }
 
 // DB stores 'called' for the patient currently being seen; the UI calls it 'current'.
 const DB_TO_Q: Record<string, QStatus> = { waiting: 'waiting', called: 'current', done: 'done', skipped: 'skipped' };
@@ -23,6 +24,11 @@ const SLOT_DATA = [
 ];
 
 function tok(n: number) { return String(n).padStart(2, '0'); }
+function to12h(t: string) {
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h)) return t;
+  return `${h % 12 || 12}:${String(m || 0).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
 
 function SlotBars({ data }: { data: typeof SLOT_DATA }) {
   return (
@@ -59,6 +65,101 @@ export default function DashboardPage() {
   const [doctorPlan, setDoctorPlan] = useState('free');
   const [todayBookingCount, setTodayBookingCount] = useState(0);
 
+  // Walk-ins tab
+  const [activeTab, setActiveTab] = useState<'walkins' | 'appointments'>('walkins');
+  const [wiName, setWiName] = useState('');
+  const [wiPhone, setWiPhone] = useState('');
+  const [wiAdding, setWiAdding] = useState(false);
+  const [wiResult, setWiResult] = useState<{ token: number; aheadCount: number } | null>(null);
+  const [walkinList, setWalkinList] = useState<{ id: string; token: number; name: string; status: string }[]>([]);
+  const [pendingAppts, setPendingAppts] = useState<PendingAppt[]>([]);
+  const [checkingInIds, setCheckingInIds] = useState<Set<string>>(new Set());
+
+  // Tracks which booking IDs are already in the live queue; used by the realtime
+  // UPDATE handler to distinguish check-ins (new row) from status changes (existing row).
+  const queueIdsRef = useRef<Set<string>>(new Set());
+
+  async function loadQueue(cId: string) {
+    const supabase = createClient();
+    const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const startUTC = new Date(`${todayIST}T00:00:00+05:30`).toISOString();
+    const endUTC   = new Date(`${todayIST}T23:59:59.999+05:30`).toISOString();
+    const { data } = await supabase
+      .from('bookings')
+      .select('id, token_number, patient_name, status, source, slots(time)')
+      .eq('clinic_id', cId)
+      .not('token_number', 'is', null)
+      .gte('checked_in_at', startUTC)
+      .lte('checked_in_at', endUTC)
+      .order('token_number');
+    if (!data) return;
+    setQueue(data.map(b => {
+      const slot = (Array.isArray(b.slots) ? b.slots[0] : b.slots) as { time?: string } | null;
+      return {
+        id: b.id,
+        token: b.token_number as number,
+        name: b.patient_name || 'Unknown Patient',
+        age: 0,
+        time: '—',
+        status: DB_TO_Q[b.status as string] ?? 'waiting',
+        source: (b.source as string) ?? 'walkin',
+        slotTime: slot?.time ? to12h(slot.time) : '',
+      };
+    }));
+  }
+
+  async function loadPendingAppts(cId: string) {
+    const supabase = createClient();
+    const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const { data } = await supabase
+      .from('bookings')
+      .select('id, patient_name, slots(date, time)')
+      .eq('clinic_id', cId)
+      .eq('source', 'appointment')
+      .is('token_number', null);
+    if (!data) return;
+    setPendingAppts(
+      data
+        .map(b => {
+          const slot = (Array.isArray(b.slots) ? b.slots[0] : b.slots) as { date?: string; time?: string } | null;
+          return {
+            id: b.id,
+            name: b.patient_name || 'Unknown Patient',
+            slotDate: slot?.date ?? '',
+            slotTimeRaw: slot?.time ?? '',
+            slotTime: slot?.time ? to12h(slot.time) : '—',
+            assignedToken: null as number | null,
+          };
+        })
+        .filter(a => a.slotDate === todayIST)
+        .sort((a, b) => a.slotTimeRaw.localeCompare(b.slotTimeRaw))
+        .map(({ id, name, slotTimeRaw, slotTime, assignedToken }) => ({ id, name, slotTimeRaw, slotTime, assignedToken }))
+    );
+  }
+
+  async function loadWalkins(cId: string) {
+    const supabase = createClient();
+    const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const startUTC = new Date(`${todayIST}T00:00:00+05:30`).toISOString();
+    const endUTC   = new Date(`${todayIST}T23:59:59.999+05:30`).toISOString();
+    const { data } = await supabase
+      .from('bookings')
+      .select('id, token_number, patient_name, status')
+      .eq('clinic_id', cId)
+      .eq('source', 'walkin')
+      .gte('created_at', startUTC)
+      .lte('created_at', endUTC)
+      .order('token_number');
+    if (data) {
+      setWalkinList(data.map(b => ({
+        id: b.id,
+        token: b.token_number,
+        name: b.patient_name || 'Unknown',
+        status: b.status || 'waiting',
+      })));
+    }
+  }
+
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -74,6 +175,8 @@ export default function DashboardPage() {
           setClinicId(data.id);
           if (data.name) setClinicName(data.name);
           if (data.slug) setSlug(data.slug);
+          void loadWalkins(data.id);
+          void loadPendingAppts(data.id);
 
           supabase
             .from('doctors')
@@ -97,22 +200,7 @@ export default function DashboardPage() {
               }
             });
 
-          supabase
-            .from('bookings')
-            .select('id, token_number, patient_name, status')
-            .eq('clinic_id', data.id)
-            .order('token_number')
-            .then(({ data: bookings }) => {
-              if (!bookings) return;
-              setQueue(bookings.map(b => ({
-                id: b.id,
-                token: b.token_number,
-                name: b.patient_name || 'Unknown Patient',
-                age: 0,
-                time: '—',
-                status: DB_TO_Q[b.status as string] ?? 'waiting',
-              })));
-            });
+          void loadQueue(data.id);
         });
     });
   }, []);
@@ -153,6 +241,46 @@ export default function DashboardPage() {
       window.history.replaceState({}, '', '/dashboard');
     }
   }, []);
+
+  // Keep the ref in sync so the realtime UPDATE handler can check queue membership.
+  useEffect(() => {
+    queueIdsRef.current = new Set(queue.map(p => p.id));
+  }, [queue]);
+
+  // Realtime: INSERT fires when a walk-in gets a token; UPDATE fires when an
+  // appointment is checked in (token_number: null → non-null). We detect the
+  // latter by checking whether the row is already tracked in queueIdsRef —
+  // this avoids full reloads on every status-change UPDATE (markDone, skip, etc.)
+  // without requiring REPLICA IDENTITY FULL on the bookings table.
+  useEffect(() => {
+    if (!clinicId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`queue:${clinicId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'bookings', filter: `clinic_id=eq.${clinicId}` },
+        (payload) => {
+          const nw = payload.new as { token_number: number | null };
+          if (nw.token_number !== null) void loadQueue(clinicId);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `clinic_id=eq.${clinicId}` },
+        (payload) => {
+          const nw  = payload.new as { id: string; token_number: number | null };
+          const old = payload.old as { token_number?: number | null };
+          // Row not yet in queue but now has a token → appointment just checked in.
+          // Also catches the explicit null→non-null transition when REPLICA IDENTITY FULL is on.
+          const justCheckedIn = nw.token_number !== null && !queueIdsRef.current.has(nw.id);
+          const explicitTransition = old.token_number === null && nw.token_number !== null;
+          if (justCheckedIn || explicitTransition) void loadQueue(clinicId);
+        }
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [clinicId]);
 
   const current = queue.find(p => p.status === 'current');
   const waiting = queue.filter(p => p.status === 'waiting');
@@ -221,7 +349,7 @@ export default function DashboardPage() {
     if (!newName.trim()) return;
     const nextToken = Math.max(...queue.map(p => p.token), 0) + 1;
     const timeStr = newTime.trim() || '—';
-    const entry: QItem = { id: '', token: nextToken, name: newName.trim(), age: parseInt(newAge) || 0, time: timeStr, status: 'waiting' };
+    const entry: QItem = { id: '', token: nextToken, name: newName.trim(), age: parseInt(newAge) || 0, time: timeStr, status: 'waiting', source: 'walkin', slotTime: '' };
     setQueue(prev => [...prev, entry]);
     if (clinicId) {
       await fetch('/api/bookings', {
@@ -238,6 +366,56 @@ export default function DashboardPage() {
     }
     setNewName(''); setNewAge(''); setNewTime('');
     setAddPatientOpen(false);
+  }
+
+  async function addWalkin() {
+    if (!wiName.trim() || !clinicId) return;
+    setWiAdding(true);
+    const aheadCount = walkinList.filter(w => w.status === 'waiting').length;
+    const res = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clinic_id: clinicId,
+        patient_name: wiName.trim(),
+        patient_phone: wiPhone.trim(),
+        slot_id: null,
+        source: 'walkin',
+      }),
+    });
+    setWiAdding(false);
+    if (!res.ok) {
+      let message = 'Could not register walk-in. Please try again.';
+      try { const b = await res.json(); if (b?.error) message = b.error; } catch {}
+      toast.error(message);
+      return;
+    }
+    const { booking } = await res.json();
+    setWiResult({ token: booking.token_number as number, aheadCount });
+    setWiName('');
+    setWiPhone('');
+    void loadWalkins(clinicId);
+  }
+
+  async function checkIn(bookingId: string) {
+    setCheckingInIds(prev => new Set([...prev, bookingId]));
+    const res = await fetch('/api/bookings/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: bookingId }),
+    });
+    setCheckingInIds(prev => { const s = new Set(prev); s.delete(bookingId); return s; });
+    if (!res.ok) {
+      let message = 'Check-in failed. Please try again.';
+      try { const b = await res.json(); if (b?.error) message = b.error; } catch {}
+      toast.error(message);
+      return;
+    }
+    const { booking } = await res.json();
+    setPendingAppts(prev =>
+      prev.map(a => a.id === bookingId ? { ...a, assignedToken: booking.token_number as number } : a)
+    );
+    void loadQueue(clinicId);
   }
 
   return (
@@ -282,6 +460,119 @@ export default function DashboardPage() {
         </Link>
       )}
 
+      <div className={styles.settingsTabs}>
+        <button
+          className={`${styles.settingsTabBtn} ${activeTab === 'walkins' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('walkins')}
+        >Walk-ins</button>
+        <button
+          className={`${styles.settingsTabBtn} ${activeTab === 'appointments' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('appointments')}
+        >Appointments</button>
+      </div>
+
+      {activeTab === 'walkins' && (
+        <div style={{maxWidth: 560}}>
+          {wiResult ? (
+            <div className={styles.card} style={{textAlign: 'center', padding: '40px 24px'}}>
+              <div style={{fontSize: 72, fontWeight: 700, color: 'var(--teal)', lineHeight: 1, letterSpacing: '-2px'}}>
+                #{tok(wiResult.token)}
+              </div>
+              <div style={{fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 12}}>
+                Token #{tok(wiResult.token)} assigned
+              </div>
+              <div style={{fontSize: 14, color: 'var(--muted)', marginTop: 6}}>
+                {wiResult.aheadCount === 0
+                  ? 'Next up — no one ahead'
+                  : `${wiResult.aheadCount} ${wiResult.aheadCount === 1 ? 'person' : 'people'} ahead`}
+              </div>
+              <button
+                className={`${styles.actionBtn} ${styles.primary}`}
+                style={{marginTop: 24}}
+                onClick={() => setWiResult(null)}
+              >
+                Register another patient →
+              </button>
+            </div>
+          ) : (
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 2v12M2 8h12"/></svg>
+                <span className={styles.cardTitle}>Take Token</span>
+                <span className={styles.cardSub}>Walk-in registration</span>
+              </div>
+              <div style={{padding: '0 20px 20px'}}>
+                <div style={{display: 'flex', flexDirection: 'column', gap: 14, padding: '4px 0 16px'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+                    <div style={{flexShrink: 0, width: 88}}>
+                      <div className={styles.settingsRowLabel}>Full name <span style={{color:'var(--red)'}}>*</span></div>
+                    </div>
+                    <input
+                      className={styles.settingsInput}
+                      placeholder="e.g. Arjun Sharma"
+                      value={wiName}
+                      onChange={e => setWiName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && !wiAdding && addWalkin()}
+                      style={{flex: 1}}
+                      autoFocus
+                    />
+                  </div>
+                  <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+                    <div style={{flexShrink: 0, width: 88}}>
+                      <div className={styles.settingsRowLabel}>Phone</div>
+                      <div className={styles.settingsRowSub}>Optional</div>
+                    </div>
+                    <input
+                      className={styles.settingsInput}
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder="10-digit number"
+                      value={wiPhone}
+                      onChange={e => setWiPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      style={{flex: 1}}
+                    />
+                  </div>
+                </div>
+                <button
+                  className={`${styles.actionBtn} ${styles.primary}`}
+                  style={{width: '100%', justifyContent: 'center'}}
+                  onClick={addWalkin}
+                  disabled={!wiName.trim() || wiAdding}
+                >
+                  {wiAdding ? 'Assigning token…' : 'Take Token'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className={styles.card} style={{marginTop: 16}}>
+            <div className={styles.cardHeader}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2.5 4h11M2.5 8h7M2.5 12h5"/></svg>
+              <span className={styles.cardTitle}>Today&apos;s Walk-ins</span>
+              <span className={styles.cardSub}>{walkinList.length} total</span>
+            </div>
+            {walkinList.length === 0 ? (
+              <div style={{padding: '24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13}}>
+                No walk-ins yet today
+              </div>
+            ) : walkinList.map(w => {
+              const statusColor = ({ done: 'var(--green)', called: 'var(--teal)', waiting: 'var(--amber)', skipped: 'var(--red)' } as Record<string,string>)[w.status] ?? 'var(--muted)';
+              const statusLabel = ({ done: 'Done', called: 'In session', waiting: 'Waiting', skipped: 'Skipped' } as Record<string,string>)[w.status] ?? w.status;
+              return (
+                <div key={w.id} className={`${styles.queueItem} ${styles[w.status as keyof typeof styles] ?? ''}`}>
+                  <div className={styles.queueToken}>{tok(w.token)}</div>
+                  <div className={styles.qInfo}>
+                    <div className={styles.qName}>{w.name}</div>
+                  </div>
+                  <span style={{fontSize: 12, fontWeight: 500, color: statusColor}}>{statusLabel}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'appointments' && (<>
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
           <div className={styles.statLabel}>Waiting</div>
@@ -335,7 +626,17 @@ export default function DashboardPage() {
                   <div className={styles.queueToken}>{tok(p.token)}</div>
                   <div className={styles.qInfo}>
                     <div className={styles.qName}>{p.name}</div>
-                    <div className={styles.qMeta}>{p.age} yrs · {p.time}</div>
+                    <div className={styles.qMeta}>
+                      {p.source === 'appointment' ? (
+                        <span style={{fontSize:10,fontWeight:600,letterSpacing:0.3,padding:'1px 6px',borderRadius:4,background:'var(--teal-dim)',color:'var(--teal)',border:'1px solid var(--teal-border)'}}>
+                          Appt {p.slotTime || '—'}
+                        </span>
+                      ) : (
+                        <span style={{fontSize:10,fontWeight:600,letterSpacing:0.3,padding:'1px 6px',borderRadius:4,background:'rgba(251,191,36,0.12)',color:'var(--amber)',border:'1px solid rgba(251,191,36,0.3)'}}>
+                          Walk-in
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <span className={`${styles.qStatus} ${styles[p.status]}`}>
                     {{ done: 'Done', current: 'In', waiting: 'Waiting', skipped: 'Skipped' }[p.status]}
@@ -343,6 +644,42 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className={styles.card} style={{marginTop: 16}}>
+            <div className={styles.cardHeader}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="1.5" width="12" height="13" rx="1.5" /><path d="M5 1.5v3M11 1.5v3M2 7.5h12"/></svg>
+              <span className={styles.cardTitle}>Today&apos;s Appointments</span>
+              <span className={styles.cardSub}>{pendingAppts.filter(a => a.assignedToken === null).length} pending check-in</span>
+            </div>
+            {pendingAppts.length === 0 ? (
+              <div style={{padding: '20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13}}>
+                No appointments scheduled for today
+              </div>
+            ) : pendingAppts.map(appt => (
+              <div key={appt.id} className={styles.queueItem}>
+                <div style={{minWidth: 56, fontSize: 12, fontWeight: 600, color: 'var(--teal)'}}>
+                  {appt.slotTime}
+                </div>
+                <div className={styles.qInfo}>
+                  <div className={styles.qName}>{appt.name}</div>
+                </div>
+                {appt.assignedToken !== null ? (
+                  <span style={{fontSize: 12, fontWeight: 600, color: 'var(--teal)', whiteSpace: 'nowrap'}}>
+                    Token #{tok(appt.assignedToken)} ✓
+                  </span>
+                ) : (
+                  <button
+                    className={`${styles.actionBtn} ${styles.primary}`}
+                    style={{padding: '4px 12px', fontSize: 12, height: 'auto'}}
+                    onClick={() => void checkIn(appt.id)}
+                    disabled={checkingInIds.has(appt.id)}
+                  >
+                    {checkingInIds.has(appt.id) ? 'Checking in…' : 'Check In'}
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -367,6 +704,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      </>)}
 
       {/* Manage Slots Modal */}
       <div className={`${styles.modalOverlay} ${slotsOpen ? styles.open : ''}`} onClick={e => { if (e.target === e.currentTarget) setSlotsOpen(false); }}>
@@ -467,7 +805,7 @@ export default function DashboardPage() {
           <div className={styles.modalTitle}>Booking QR Code</div>
           <BookingQRCode slug={slug} clinicName={clinicName} size={180} />
           <div className={styles.modalUrlSub} style={{marginTop:12}}>
-            <span style={{color:'var(--teal)',cursor:'pointer'}} onClick={() => window.open(`/book/${slug}`, '_blank')}>Preview booking page ↗</span>
+            <span style={{color:'var(--teal)',cursor:'pointer'}} onClick={() => window.open(`/walkin/${slug}`, '_blank')}>Preview patient page ↗</span>
           </div>
         </div>
       </div>

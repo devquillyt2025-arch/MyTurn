@@ -60,8 +60,12 @@ create table bookings (
   clinic_id      uuid references clinics(id) on delete cascade,
   patient_name   text not null,
   patient_phone  text not null default '',
-  token_number   integer not null,
+  token_number   integer,
   status         text check (status in ('waiting','called','done','skipped')) default 'waiting',
+  -- Intake channel: 'walkin' (no appointment) or 'appointment' (pre-booked slot).
+  source         text not null default 'walkin' check (source in ('walkin','appointment')),
+  -- Null = appointment not yet checked in (and therefore not yet assigned a token).
+  checked_in_at  timestamptz,
   created_at     timestamptz default now()
 );
 
@@ -154,3 +158,31 @@ create policy "usage_logs: owner read" on usage_logs
   using (exists (
     select 1 from clinics where id = usage_logs.clinic_id and user_id = auth.uid()
   ));
+
+
+-- ═══════════════════════════════════════════════════════════════════
+-- Migration: walk-in vs appointment intake channels
+--   Adds `source` and `checked_in_at` to bookings. Idempotent — safe to
+--   re-run. For an existing database, run this block in the SQL editor.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- 0. Allow appointments to have no token until check-in.
+alter table bookings alter column token_number drop not null;
+
+-- 1. Intake channel.
+alter table bookings
+  add column if not exists source text
+  not null default 'walkin'
+  check (source in ('walkin', 'appointment'));
+
+-- 2. Check-in time. Null = appointment that hasn't checked in yet (no token).
+alter table bookings
+  add column if not exists checked_in_at timestamptz;
+
+-- 3. Backfill existing slot-booked rows as already-checked-in appointments.
+--    NOTE: the spec said `slot_time`, but bookings has no such column; the
+--    slot link is `slot_id` (a slot row carries the date/time). So a
+--    "non-null slot_time" booking == a row with a non-null slot_id.
+update bookings
+  set source = 'appointment', checked_in_at = created_at
+  where slot_id is not null and source = 'walkin';

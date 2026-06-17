@@ -1,0 +1,365 @@
+.page {
+  --cream: #FAF7F2;
+  --warm-white: #FFFEF9;
+  --charcoal: #1C1C1E;
+  --ink: #2C2C2E;
+  --muted: #8A8A8E;
+  --border: #E8E3DB;
+  --teal: #0D7377;
+  --teal-light: #E6F4F4;
+  --teal-mid: #14A89E;
+  --radius: 16px;
+  --radius-sm: 10px;
+
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  background: var(--cream);
+  color: var(--charcoal);
+  min-height: 100vh;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 0 0 48px;
+  overflow-x: hidden;
+}
+
+/* ─── Loading / 404 ──────────────────────────────── */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.notFound {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  text-align: center;
+  gap: 12px;
+}
+.notFoundCode { font-size: 56px; font-weight: 700; color: var(--muted); }
+.notFoundTitle { font-size: 20px; font-weight: 600; color: var(--charcoal); }
+.notFoundSub { font-size: 14px; color: var(--muted); max-width: 300px; line-height: 1.5; }
+
+/* ─── Header ──────────────────────────────────────── */
+.header {
+  background: var(--teal);
+  padding: 36px 24px 28px;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+}
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: -60px; left: -20px;
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+}
+
+.clinicBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.85);
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  margin-bottom: 14px;
+}
+
+.doctorName {
+  font-family: var(--font-dm-serif, 'DM Serif Display'), serif;
+  font-size: 26px;
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.headerSub {
+  font-size: 13px;
+  color: rgba(255,255,255,0.65);
+  font-weight: 300;
+  letter-spacing: 0.3px;
+}
+
+/* ─── Body ────────────────────────────────────────── */
+.body {
+  padding: 24px 20px;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+/* ─── Option cards ────────────────────────────────── */
+.optCard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  background: var(--warm-white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  min-height: 80px;
+}
+.optCard:hover {
+  border-color: var(--teal);
+  background: var(--teal-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(13,115,119,0.1);
+}
+.optCard:active { transform: translateY(0); box-shadow: none; }
+
+.optIcon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(20,168,158,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.optIconAlt { background: rgba(13,115,119,0.08); }
+
+.optText { flex: 1; min-width: 0; }
+
+.optTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--charcoal);
+  margin-bottom: 3px;
+}
+
+.optDesc { font-size: 13px; color: var(--muted); line-height: 1.4; }
+
+.chevron {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.optCard:hover .chevron { transform: translateX(3px); color: var(--teal); }
+
+/* ─── Back button ─────────────────────────────────── */
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 20px;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  transition: color 0.15s;
+}
+.backBtn:hover { color: var(--teal); }
+
+/* ─── Form card ───────────────────────────────────── */
+.formCard {
+  background: var(--warm-white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.formRow { margin-bottom: 16px; }
+
+.formLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 7px;
+  letter-spacing: 0.2px;
+}
+
+.required { color: #e53e3e; margin-left: 2px; }
+
+.optional {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+.formInput {
+  width: 100%;
+  background: var(--cream);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 15px;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  color: var(--charcoal);
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+}
+.formInput:focus { border-color: var(--teal); background: var(--warm-white); }
+.formInput::placeholder { color: var(--muted); font-size: 14px; }
+.formInput:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ─── Error ───────────────────────────────────────── */
+.errorMsg {
+  font-size: 13px;
+  color: #D64045;
+  background: rgba(214,64,69,0.08);
+  border: 1px solid rgba(214,64,69,0.2);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  line-height: 1.45;
+}
+
+/* ─── CTA button ──────────────────────────────────── */
+.ctaBtn {
+  width: 100%;
+  background: var(--teal);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 16px;
+  min-height: 52px;
+  font-size: 16px;
+  font-weight: 500;
+  font-family: var(--font-dm-sans, 'DM Sans'), sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+}
+.ctaBtn:hover:not(:disabled) { background: #0A5E62; }
+.ctaBtn:active:not(:disabled) { transform: scale(0.98); }
+.ctaBtn:disabled { background: var(--muted); cursor: not-allowed; }
+
+/* ─── Confirmation ────────────────────────────────── */
+.confirmedWrap {
+  text-align: center;
+  padding: 28px 0 20px;
+}
+
+.confirmedCheck {
+  width: 56px;
+  height: 56px;
+  background: rgba(20,168,158,0.12);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  color: var(--teal-mid);
+}
+.confirmedCheck svg { width: 28px; height: 28px; }
+
+.confirmedLabel {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.tokenBig {
+  font-family: var(--font-dm-serif, 'DM Serif Display'), serif;
+  font-size: 80px;
+  color: var(--teal-mid);
+  line-height: 1;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.aheadText {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--charcoal);
+  margin-bottom: 20px;
+}
+
+.closeNote {
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  line-height: 1.5;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+/* ─── Clinic info card ────────────────────────────── */
+.clinicInfoCard {
+  background: var(--warm-white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 20px;
+  margin-top: 24px;
+}
+
+.clinicInfoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.clinicInfoRow:last-child { border-bottom: none; }
+
+.clinicInfoLabel { color: var(--muted); flex-shrink: 0; }
+.clinicInfoVal { font-weight: 500; color: var(--ink); text-align: right; word-break: break-word; }
+
+/* ─── Mobile (≤ 430px) ───────────────────────────── */
+@media (max-width: 430px) {
+  .header { padding: 28px 16px 22px; }
+  .body { padding: 20px 16px; }
+  .doctorName { font-size: 22px; }
+  .tokenBig { font-size: 68px; }
+  .optCard { padding: 16px 14px; gap: 14px; }
+  .optIcon { width: 44px; height: 44px; }
+}

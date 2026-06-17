@@ -37,14 +37,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    const { clinic_id, slot_id, patient_name, patient_phone } = body as {
+    const { clinic_id, slot_id, patient_name, patient_phone = '', source: rawSource } = body as {
       clinic_id: string;
       slot_id?: string | null;
       patient_name: string;
-      patient_phone: string;
+      patient_phone?: string;
+      source?: string;
     };
 
-    if (!clinic_id || !patient_name || !patient_phone) {
+    const source = rawSource === 'appointment' ? 'appointment' : 'walkin';
+
+    if (!clinic_id || !patient_name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -103,16 +106,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // SECURITY FIX: Atomic token assignment via Postgres advisory lock.
-    // Replaces the previous MAX(token_number)+1 read-then-write that allowed duplicates.
-    const { data: nextToken, error: tokenError } = await supabase.rpc('get_next_token', {
-      p_clinic_id: clinic_id,
-    });
-    if (tokenError || nextToken === null || nextToken === undefined) {
-      console.error('[POST /api/bookings] get_next_token error:', tokenError);
-      return NextResponse.json({ error: 'Failed to assign token number' }, { status: 500 });
+    // Walk-ins get a token immediately; appointments get one only at check-in.
+    let assignedToken: number | null = null;
+    let checkedInAt: string | null = null;
+
+    if (source === 'walkin') {
+      const { data: nextToken, error: tokenError } = await supabase.rpc('get_next_token', {
+        p_clinic_id: clinic_id,
+      });
+      if (tokenError || nextToken === null || nextToken === undefined) {
+        console.error('[POST /api/bookings] get_next_token error:', tokenError);
+        return NextResponse.json({ error: 'Failed to assign token number' }, { status: 500 });
+      }
+      assignedToken = nextToken as number;
+      checkedInAt = new Date().toISOString();
     }
-    const assignedToken = nextToken as number;
 
     // Create the booking
     const { data: booking, error: bookingError } = await supabase
@@ -124,8 +132,10 @@ export async function POST(request: NextRequest) {
         patient_phone,
         token_number: assignedToken,
         status: 'waiting',
+        source,
+        checked_in_at: checkedInAt,
       })
-      .select('id, token_number')
+      .select('id, token_number, source')
       .single();
 
     if (bookingError) {
