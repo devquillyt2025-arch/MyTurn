@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import { createClient } from '@/lib/supabase/client';
+import { useClinic } from '../clinic-context';
+import { StatusBadge, DB_STATUS_META } from '@/components/StatusBadge';
 import toast from 'react-hot-toast';
 
 // ── Static day-view data ───────────────────────────────────────────────────
@@ -195,6 +197,7 @@ function barColor(pct: number) {
 function ScheduleContent() {
   const searchParams = useSearchParams();
   const router       = useRouter();
+  const { selected: clinic } = useClinic();
 
   const view = (searchParams.get('view') ?? 'day') as 'day' | 'week' | 'month';
 
@@ -231,19 +234,12 @@ function ScheduleContent() {
 
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // ── Fetch clinic ID + capacity ─────────────────────────────────────────
+  // ── Sync clinic from context ───────────────────────────────────────────
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const user = session?.user;
-      if (!user) return;
-      supabase.from('clinics').select('id, max_patients').eq('user_id', user.id).single()
-        .then(({ data }) => {
-          if (data?.id) setClinicId(data.id);
-          if (data?.max_patients) setDailyCapacity(Number(data.max_patients));
-        });
-    });
-  }, []);
+    if (!clinic) return;
+    setClinicId(clinic.id);
+    if (clinic.max_patients) setDailyCapacity(Number(clinic.max_patients));
+  }, [clinic?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch the selected day's bookings ──────────────────────────────────
   const dateParam = searchParams.get('date');
@@ -426,6 +422,24 @@ function ScheduleContent() {
     toast.success('Patient added');
     setNewPatient({ name: '', phone: '' });
     setAddOpen(false);
+  }
+
+  // ── Status update (from popover) ──────────────────────────────────────
+  async function updatePopoverStatus(newDbStatus: string) {
+    if (!popover) return;
+    const bookingId = popover.booking.id;
+    const supabase = createClient();
+    const now = new Date().toISOString();
+    const fields: Record<string, unknown> = { status: newDbStatus };
+    if (newDbStatus === 'done') fields.completed_at = now;
+    else fields.completed_at = null;
+
+    const { error } = await supabase.from('bookings').update(fields).eq('id', bookingId);
+    if (error) { toast.error('Could not update status.'); return; }
+
+    setDayBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newDbStatus } : b));
+    setPopover(p => p ? { ...p, booking: { ...p.booking, status: newDbStatus } } : null);
+    toast.success(`Status updated to ${DB_STATUS_META[newDbStatus]?.label ?? newDbStatus}`);
   }
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -724,7 +738,10 @@ function ScheduleContent() {
           )}
           <div className={styles.calPopoverRow}>
             <span>Status</span>
-            <span className={styles.calPopoverStatus}>{statusLabel(popover.booking.status)}</span>
+            <StatusBadge
+              dbStatus={popover.booking.status ?? 'waiting'}
+              onUpdate={updatePopoverStatus}
+            />
           </div>
         </div>
       )}

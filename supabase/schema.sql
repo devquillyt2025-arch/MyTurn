@@ -186,3 +186,24 @@ alter table bookings
 update bookings
   set source = 'appointment', checked_in_at = created_at
   where slot_id is not null and source = 'walkin';
+
+-- ═══════════════════════════════════════════════════════════════════
+-- Function: get_next_token
+--   Returns the next token number for a clinic scoped to today (IST).
+--   Tokens reset to #01 at midnight Asia/Kolkata each day.
+-- ═══════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION get_next_token(p_clinic_id uuid)
+RETURNS integer
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT COALESCE(
+    MAX(token_number),
+    0
+  ) + 1
+  FROM bookings
+  WHERE clinic_id      = p_clinic_id
+    AND token_number   IS NOT NULL
+    AND (checked_in_at AT TIME ZONE 'Asia/Kolkata')::date
+        = (NOW()        AT TIME ZONE 'Asia/Kolkata')::date;
+$$;

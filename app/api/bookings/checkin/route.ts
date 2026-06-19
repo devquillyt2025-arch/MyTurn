@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const { data: booking, error: fetchError } = await supabase
       .from('bookings')
-      .select('id, clinic_id, source, token_number')
+      .select('id, clinic_id, source, token_number, patient_name, patient_phone')
       .eq('id', id)
       .single();
 
@@ -50,11 +50,13 @@ export async function POST(request: NextRequest) {
     }
 
     // .is() guard ensures the UPDATE is a no-op if a concurrent request already checked in.
+    const now = new Date().toISOString();
     const { data: updated, error: updateError } = await supabase
       .from('bookings')
       .update({
         token_number: nextToken as number,
-        checked_in_at: new Date().toISOString(),
+        checked_in_at: now,
+        assigned_at:   now,   // token is now assigned — journey starts here
         status: 'waiting',
       })
       .eq('id', id)
@@ -68,6 +70,23 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
+
+    // Fire-and-forget simulated notification log for the check-in.
+    supabase.from('clinics').select('name').eq('id', booking.clinic_id).single()
+      .then(({ data: clinic }) => {
+        const clinicName = clinic?.name ?? '';
+        const paddedToken = String(nextToken).padStart(2, '0');
+        supabase.from('notifications_log').insert({
+          clinic_id: booking.clinic_id,
+          booking_id: id,
+          patient_name: (booking as { patient_name?: string }).patient_name ?? '',
+          patient_phone: (booking as { patient_phone?: string }).patient_phone ?? '',
+          channel: 'sms',
+          message_type: 'token_issued',
+          message_content: `Hi ${(booking as { patient_name?: string }).patient_name ?? 'there'}! You've been checked in at ${clinicName}. Your token is #${paddedToken}. Please wait to be called.`,
+          status: 'sent',
+        });
+      });
 
     return NextResponse.json({ booking: updated }, { status: 200 });
   } catch (err) {

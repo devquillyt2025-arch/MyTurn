@@ -3,16 +3,31 @@
 import { useState, useEffect, useCallback } from 'react';
 import styles from '../page.module.css';
 import { createClient } from '@/lib/supabase/client';
+import { CustomSelect } from '@/components/CustomSelect';
+import { StatusBadge } from '@/components/StatusBadge';
+import { useClinic } from '../clinic-context';
 import toast from 'react-hot-toast';
 
 type QStatus = 'done' | 'current' | 'waiting' | 'skipped';
-interface QItem { token: number; name: string; age: number; date: string; time: string; ts: number; status: QStatus; }
+type BookingSource = 'walkin' | 'appointment';
+interface QItem {
+  id: string;
+  token: number;
+  name: string;
+  ts: number;
+  status: QStatus;
+  isoDate?: string;
+  source: BookingSource;
+  assignedAt: string | null;
+  completedAt: string | null;
+}
 
-type SortKey = 'token' | 'age' | 'datetime' | 'status';
+type SortKey = 'token' | 'assigned' | 'completed' | 'status';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const STATUS_MAP: Record<string, QStatus> = { waiting: 'waiting', called: 'current', done: 'done', skipped: 'skipped' };
-// Sort order for the Status column: active patients first, finished last.
+const Q_TO_DB: Record<QStatus, string> = { waiting: 'waiting', current: 'called', done: 'done', skipped: 'skipped' };
+const DB_STATUS_LABEL: Record<string, string> = { waiting: 'Waiting', called: 'In session', done: 'Done', skipped: 'No-show' };
 const STATUS_ORDER: Record<QStatus, number> = { current: 0, waiting: 1, skipped: 2, done: 3 };
 
 function tok(n: number) { return String(n).padStart(2, '0'); }
@@ -20,32 +35,34 @@ function tok(n: number) { return String(n).padStart(2, '0'); }
 function to12h(t24: string): string {
   const [h, m] = t24.split(':').map(Number);
   if (Number.isNaN(h)) return t24;
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  return `${h % 12 || 12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
+  return `${h % 12 || 12}:${String(m || 0).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
-function fmtDate(iso: string): string {
-  const [y, mo, d] = iso.split('-').map(Number);
-  if (!y || !mo || !d) return '';
-  return `${d} ${MONTHS[mo - 1]} ${y}`;
+// Format a UTC timestamptz in IST as "19 Jun, 9:00 AM".
+function fmtIST(iso: string | null): string {
+  if (!iso) return '—';
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return '—';
+  return dt.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric', month: 'short',
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  }).replace(/\b(am|pm)\b/gi, s => s.toUpperCase());
 }
 
-// Booked slot takes priority; fall back to when the booking was created (walk-ins).
-function formatWhen(slot: { date?: string; time?: string } | null, createdAt?: string | null): { date: string; time: string } {
-  if (slot?.date && slot?.time) return { date: fmtDate(slot.date), time: to12h(slot.time) };
-  if (createdAt) {
-    const dt = new Date(createdAt);
-    if (!Number.isNaN(dt.getTime())) {
-      return {
-        date: `${dt.getDate()} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`,
-        time: to12h(`${dt.getHours()}:${String(dt.getMinutes()).padStart(2, '0')}`),
-      };
-    }
-  }
-  return { date: '—', time: '—' };
+// Duration between two ISO timestamps, in whole minutes.
+function diffMins(from: string, to: string): number {
+  return Math.max(0, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 60000));
 }
 
-// Sortable epoch for the booked slot date+time (or creation time for walk-ins).
+// "18 min" / "1 h 5 min"
+function fmtDuration(mins: number): string {
+  if (mins < 1) return '< 1 min';
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
+
 function whenTs(slot: { date?: string; time?: string } | null, createdAt?: string | null): number {
   if (slot?.date && slot?.time) {
     const t = new Date(`${slot.date}T${slot.time}:00`).getTime();
@@ -60,25 +77,42 @@ function whenTs(slot: { date?: string; time?: string } | null, createdAt?: strin
 
 type SlotRel = { date?: string; time?: string };
 interface BookingRow {
+  id: string;
   token_number: number;
   patient_name: string | null;
   status: string | null;
   created_at: string | null;
+  assigned_at: string | null;
+  completed_at: string | null;
   slots: SlotRel | SlotRel[] | null;
+  source: string | null;
 }
 
 function mapBookings(rows: BookingRow[]): QItem[] {
   return rows.map(b => {
     const slot = (Array.isArray(b.slots) ? b.slots[0] : b.slots) ?? null;
-    const when = formatWhen(slot, b.created_at);
+
+    // isoDate for date-filter: prefer slot.date (appointment booked date),
+    // then assigned_at date in IST, then created_at.
+    let isoDate = '';
+    if (slot?.date) {
+      isoDate = slot.date;
+    } else if (b.assigned_at) {
+      isoDate = new Date(b.assigned_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    } else if (b.created_at) {
+      isoDate = new Date(b.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    }
+
     return {
+      id: b.id,
       token: b.token_number,
       name: b.patient_name || 'Unknown Patient',
-      age: 0,
-      date: when.date,
-      time: when.time,
-      ts: whenTs(slot, b.created_at),
+      ts: b.assigned_at ? new Date(b.assigned_at).getTime() : whenTs(slot, b.created_at),
       status: STATUS_MAP[b.status ?? ''] ?? 'waiting',
+      isoDate,
+      source: (b.source === 'appointment' ? 'appointment' : 'walkin') as BookingSource,
+      assignedAt: b.assigned_at,
+      completedAt: b.completed_at,
     };
   });
 }
@@ -112,6 +146,12 @@ function todayISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function getRelativeDateISO(offsetDays: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function escHtml(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -125,9 +165,11 @@ function hlHtml(text: string, q: string) {
 }
 
 export default function PatientsPage() {
+  const { selected: clinic } = useClinic();
   const [queue, setQueue] = useState<QItem[]>([]);
   const [clinicId, setClinicId] = useState('');
   const [patientFilter, setPatientFilter] = useState('');
+  const [viewDate, setViewDate] = useState(todayISO());
   const [sortKey, setSortKey] = useState<SortKey>('token');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [addPatientOpen, setAddPatientOpen] = useState(false);
@@ -143,32 +185,40 @@ export default function PatientsPage() {
     const supabase = createClient();
     const { data: bookings } = await supabase
       .from('bookings')
-      .select('token_number, patient_name, status, created_at, slots(date, time)')
+      .select('id, token_number, patient_name, status, created_at, assigned_at, completed_at, source, slots(date, time)')
       .eq('clinic_id', cId)
       .order('token_number');
     if (bookings) setQueue(mapBookings(bookings as BookingRow[]));
   }, []);
 
-  useEffect(() => {
+  async function updateStatus(item: QItem, newDbStatus: string) {
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const user = session?.user;
-      if (!user) return;
-      supabase
-        .from('clinics')
-        .select('id, hours, slot_duration')
-        .eq('user_id', user.id)
-        .single()
-        .then(({ data }) => {
-          if (!data) return;
-          setClinicId(data.id);
-          const opts = buildSlotOptions(data.hours as ClinicHours | null, data.slot_duration || 15);
-          setSlotOptions(opts);
-          setNewTime(prev => prev || opts[0]?.value || '');
-          loadPatients(data.id);
-        });
-    });
-  }, [loadPatients]);
+    const now = new Date().toISOString();
+    const fields: Record<string, unknown> = { status: newDbStatus };
+    if (newDbStatus === 'done') fields.completed_at = now;
+    else fields.completed_at = null;
+
+    const { error } = await supabase.from('bookings').update(fields).eq('id', item.id);
+    if (error) { toast.error('Could not update status.'); return; }
+
+    const newQStatus = STATUS_MAP[newDbStatus] ?? 'waiting';
+    setQueue(prev => prev.map(p => p.id === item.id ? {
+      ...p,
+      status: newQStatus,
+      completedAt: newDbStatus === 'done' ? now : null,
+    } : p));
+    toast.success(`Status updated to ${DB_STATUS_LABEL[newDbStatus] ?? newDbStatus}`);
+  }
+
+  useEffect(() => {
+    if (!clinic) return;
+    setClinicId(clinic.id);
+    setQueue([]);
+    const opts = buildSlotOptions(clinic.hours as ClinicHours | null, clinic.slot_duration || 15);
+    setSlotOptions(opts);
+    setNewTime(prev => prev || opts[0]?.value || '');
+    loadPatients(clinic.id);
+  }, [clinic?.id, loadPatients]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -243,16 +293,21 @@ export default function PatientsPage() {
     return sortDir === 'asc' ? ' ↑' : ' ↓';
   }
 
-  const filteredPatients = queue.filter(p =>
-    p.name.toLowerCase().includes(patientFilter.toLowerCase()) ||
-    String(p.token).includes(patientFilter)
-  );
+  const filteredPatients = queue.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(patientFilter.toLowerCase()) || String(p.token).includes(patientFilter);
+    const matchesDate = p.isoDate === viewDate;
+    return matchesSearch && matchesDate;
+  });
 
   const dir = sortDir === 'asc' ? 1 : -1;
   const sortedPatients = [...filteredPatients].sort((a, b) => {
     switch (sortKey) {
-      case 'age': return (a.age - b.age) * dir;
-      case 'datetime': return (a.ts - b.ts) * dir;
+      case 'assigned': return (a.ts - b.ts) * dir;
+      case 'completed': {
+        const at = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const bt = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        return (at - bt) * dir;
+      }
       case 'status': return (STATUS_ORDER[a.status] - STATUS_ORDER[b.status]) * dir;
       default: return (a.token - b.token) * dir;
     }
@@ -263,12 +318,44 @@ export default function PatientsPage() {
       <div className={styles.pageHeader}>
         <div>
           <div className={styles.pageTitle}>Patients</div>
-          <div className={styles.pageSub}>All registered patients · {queue.length} total today</div>
+          <div className={styles.pageSub}>All registered patients · {filteredPatients.length} total for selected date</div>
         </div>
-        <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setAddPatientOpen(true)}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15"><path d="M8 2v12M2 8h12"/></svg>
-          Add patient
-        </button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 4, background: 'var(--surface2)', padding: 4, borderRadius: 8, border: '1px solid var(--border)' }}>
+            <button 
+              className={styles.actionBtn} 
+              style={{ background: viewDate === getRelativeDateISO(-1) ? 'var(--border)' : 'transparent', border: 'none', padding: '4px 12px', height: '100%', minHeight: 28 }} 
+              onClick={() => setViewDate(getRelativeDateISO(-1))}
+            >Yesterday</button>
+            <button 
+              className={styles.actionBtn} 
+              style={{ background: viewDate === getRelativeDateISO(0) ? 'var(--border)' : 'transparent', border: 'none', padding: '4px 12px', height: '100%', minHeight: 28 }} 
+              onClick={() => setViewDate(getRelativeDateISO(0))}
+            >Today</button>
+            <button 
+              className={styles.actionBtn} 
+              style={{ background: viewDate === getRelativeDateISO(1) ? 'var(--border)' : 'transparent', border: 'none', padding: '4px 12px', height: '100%', minHeight: 28 }} 
+              onClick={() => setViewDate(getRelativeDateISO(1))}
+            >Tomorrow</button>
+          </div>
+          <input
+            type="date"
+            value={viewDate}
+            onChange={e => setViewDate(e.target.value)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              background: 'var(--surface2)',
+              color: 'var(--text)',
+              colorScheme: 'dark',
+            }}
+          />
+          <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setAddPatientOpen(true)}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15"><path d="M8 2v12M2 8h12"/></svg>
+            Add patient
+          </button>
+        </div>
       </div>
 
       <div className={styles.searchBar}>
@@ -285,28 +372,62 @@ export default function PatientsPage() {
         <div className={`${styles.patientRow} ${styles.header}`}>
           <div></div>
           <div>Name</div>
-          <div onClick={() => toggleSort('age')} style={{cursor:'pointer', userSelect:'none'}}>Age{sortArrow('age')}</div>
-          <div onClick={() => toggleSort('datetime')} style={{cursor:'pointer', userSelect:'none'}}>Date &amp; time{sortArrow('datetime')}</div>
+          <div onClick={() => toggleSort('assigned')} style={{cursor:'pointer', userSelect:'none'}}>Assigned{sortArrow('assigned')}</div>
+          <div onClick={() => toggleSort('completed')} style={{cursor:'pointer', userSelect:'none'}}>Completed{sortArrow('completed')}</div>
           <div onClick={() => toggleSort('status')} style={{cursor:'pointer', userSelect:'none'}}>Status{sortArrow('status')}</div>
         </div>
         {sortedPatients.map(p => {
           const initials = p.name.split(' ').map(w => w[0]).slice(0,2).join('');
-          const statusColor = { done: 'var(--green)', current: 'var(--teal)', waiting: 'var(--amber)', skipped: 'var(--red)' }[p.status];
-          const statusLabel = { done: 'Done', current: 'In session', waiting: 'Waiting', skipped: 'Skipped' }[p.status];
           const tokenStr = `Token #${tok(p.token)}`;
+          const sourceTag = p.source === 'walkin'
+            ? { label: 'Walk-in',     bg: 'rgba(139,92,246,0.12)', color: 'var(--purple, #8b5cf6)' }
+            : { label: 'Appointment', bg: 'rgba(20,184,166,0.12)', color: 'var(--teal, #14b8a6)'   };
+
+          // Duration badge: only when ≥ 1 min (suppresses backfilled same-timestamp rows).
+          const durationMins = p.status === 'done' && p.assignedAt && p.completedAt
+            ? diffMins(p.assignedAt, p.completedAt)
+            : -1;
+          const duration = durationMins >= 1 ? fmtDuration(durationMins) : null;
+
           return (
             <div key={p.token} className={styles.patientRow}>
               <div className={styles.patientAvatar}>{initials}</div>
+
+              {/* Name + token + source badge */}
               <div>
-                <div style={{fontWeight:500}} dangerouslySetInnerHTML={{__html: hlHtml(p.name, patientFilter)}} />
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontWeight:500}} dangerouslySetInnerHTML={{__html: hlHtml(p.name, patientFilter)}} />
+                  <span style={{fontSize:10,fontWeight:600,letterSpacing:'0.04em',padding:'2px 7px',borderRadius:20,background:sourceTag.bg,color:sourceTag.color,lineHeight:1.6,whiteSpace:'nowrap'}}>{sourceTag.label}</span>
+                </div>
                 <div style={{fontSize:12,color:'var(--muted)'}} dangerouslySetInnerHTML={{__html: hlHtml(tokenStr, patientFilter)}} />
               </div>
-              <div style={{color:'var(--muted)'}}>{p.age} yrs</div>
-              <div style={{color:'var(--muted)'}}>
-                <div>{p.date}</div>
-                <div style={{fontSize:12, opacity:0.75}}>{p.time}</div>
+
+              {/* Assigned timestamp */}
+              <div style={{color:'var(--text)', fontSize:13}}>
+                {fmtIST(p.assignedAt)}
               </div>
-              <div style={{color:statusColor,fontSize:12,fontWeight:500}}>{statusLabel}</div>
+
+              {/* Completed timestamp — or state label when not yet done */}
+              <div style={{fontSize:13}}>
+                {p.completedAt ? (
+                  <span style={{color:'var(--green)'}}>{fmtIST(p.completedAt)}</span>
+                ) : p.status === 'skipped' ? (
+                  <span style={{color:'var(--red)', fontSize:12}}>Skipped</span>
+                ) : (
+                  <span style={{color:'var(--amber)', fontSize:12}}>In progress</span>
+                )}
+              </div>
+
+              {/* Editable status badge + optional duration */}
+              <div style={{display:'flex', alignItems:'center', gap:6, flexWrap:'wrap'}}>
+                <StatusBadge
+                  dbStatus={Q_TO_DB[p.status]}
+                  onUpdate={newDb => updateStatus(p, newDb)}
+                />
+                {duration && (
+                  <span style={{color:'var(--muted)', fontSize:11}}>· {duration}</span>
+                )}
+              </div>
             </div>
           );
         })}
@@ -336,10 +457,14 @@ export default function PatientsPage() {
             </div>
             <div className={styles.settingsRow} style={{border: 'none', padding: 0}}>
               <div><div className={styles.settingsRowLabel}>Time slot</div><div className={styles.settingsRowSub}>From clinic hours</div></div>
-              <select className={styles.settingsInput} value={newTime} onChange={e => setNewTime(e.target.value)} style={{width: 170}}>
-                {slotOptions.length === 0 && <option value="">No slots configured</option>}
-                {slotOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              <CustomSelect
+                value={newTime}
+                onChange={v => setNewTime(v)}
+                options={slotOptions.length === 0
+                  ? [{ value: '', label: 'No slots configured' }]
+                  : slotOptions}
+                style={{ width: 170, height: 40 }}
+              />
             </div>
           </div>
           <div style={{marginTop: 8, padding: '10px 12px', background: 'var(--surface2)', borderRadius: 8, fontSize: 12, color: 'var(--muted)'}}>

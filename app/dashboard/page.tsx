@@ -5,6 +5,7 @@ import Link from 'next/link';
 import styles from './page.module.css';
 import { BookingQRCode } from '../../components/BookingQRCode';
 import { createClient } from '@/lib/supabase/client';
+import { useClinic } from './clinic-context';
 import toast from 'react-hot-toast';
 
 type QStatus = 'done' | 'current' | 'waiting' | 'skipped';
@@ -47,11 +48,11 @@ function SlotBars({ data }: { data: typeof SLOT_DATA }) {
 }
 
 export default function DashboardPage() {
+  const { selected: clinic, userId } = useClinic();
+
   const [queue, setQueue] = useState<QItem[]>([]);
   const [qrOpen, setQrOpen] = useState(false);
   const [clock, setClock] = useState('');
-  const [clinicName, setClinicName] = useState('');
-  const [slug, setSlug] = useState('');
   const [isFlipping, setIsFlipping] = useState(false);
   const [slotConfig, setSlotConfig] = useState(SLOT_DATA.map(s => ({ ...s, blocked: false })));
   const [slotsOpen, setSlotsOpen] = useState(false);
@@ -64,6 +65,9 @@ export default function DashboardPage() {
   const [clinicId, setClinicId] = useState('');
   const [doctorPlan, setDoctorPlan] = useState('free');
   const [todayBookingCount, setTodayBookingCount] = useState(0);
+
+  const clinicName = clinic?.name ?? '';
+  const slug = clinic?.slug ?? '';
 
   // Walk-ins tab
   const [activeTab, setActiveTab] = useState<'walkins' | 'appointments'>('walkins');
@@ -160,50 +164,38 @@ export default function DashboardPage() {
     }
   }
 
+  // Re-load all clinic data when the selected clinic changes.
   useEffect(() => {
+    if (!clinic) return;
+    setClinicId(clinic.id);
+    setQueue([]);
+    setWalkinList([]);
+    setPendingAppts([]);
+    void loadQueue(clinic.id);
+    void loadWalkins(clinic.id);
+    void loadPendingAppts(clinic.id);
+  }, [clinic?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Doctor plan is user-level — load once per session.
+  useEffect(() => {
+    if (!userId) return;
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const user = session?.user;
-      if (!user) return;
-      supabase
-        .from('clinics')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-        .then(({ data }) => {
-          if (!data) return;
-          setClinicId(data.id);
-          if (data.name) setClinicName(data.name);
-          if (data.slug) setSlug(data.slug);
-          void loadWalkins(data.id);
-          void loadPendingAppts(data.id);
+    supabase.from('doctors').select('plan').eq('id', userId).single()
+      .then(({ data: doctor }) => {
+        const plan = doctor?.plan ?? 'free';
+        setDoctorPlan(plan);
+      });
+  }, [userId]);
 
-          supabase
-            .from('doctors')
-            .select('plan')
-            .eq('id', user.id)
-            .single()
-            .then(({ data: doctor }) => {
-              const plan = doctor?.plan ?? 'free';
-              setDoctorPlan(plan);
-              if (plan === 'free') {
-                const today = new Date().toISOString().split('T')[0];
-                supabase
-                  .from('usage_logs')
-                  .select('booking_count')
-                  .eq('clinic_id', data.id)
-                  .eq('date', today)
-                  .single()
-                  .then(({ data: log }) => {
-                    setTodayBookingCount(log?.booking_count ?? 0);
-                  });
-              }
-            });
-
-          void loadQueue(data.id);
-        });
-    });
-  }, []);
+  // Usage log depends on both clinicId and plan.
+  useEffect(() => {
+    if (!clinicId || doctorPlan !== 'free') return;
+    const today = new Date().toISOString().split('T')[0];
+    const supabase = createClient();
+    supabase.from('usage_logs').select('booking_count')
+      .eq('clinic_id', clinicId).eq('date', today).single()
+      .then(({ data: log }) => setTodayBookingCount(log?.booking_count ?? 0));
+  }, [clinicId, doctorPlan]);
 
   useEffect(() => {
     function updateClock() {
@@ -288,12 +280,36 @@ export default function DashboardPage() {
 
   // Persist status changes to the DB so they survive reload and show on the
   // patients page. RLS ("bookings: owner manage") restricts this to the owner.
+  async function createInvoiceForBooking(booking: QItem) {
+    if (!clinicId) return;
+    const fee = parseFloat(String(clinic?.fee ?? '0')) || 0;
+    const visitDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    await fetch('/api/invoices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clinic_id: clinicId,
+        booking_id: booking.id || null,
+        patient_name: booking.name,
+        amount: fee,
+        consultation_fee: fee,
+        visit_date: visitDate,
+      }),
+    });
+  }
+
   async function persistStatus(updates: { id: string; status: QStatus }[]) {
     const supabase = createClient();
+    const now = new Date().toISOString();
     const results = await Promise.all(
       updates
         .filter(u => u.id)
-        .map(u => supabase.from('bookings').update({ status: Q_TO_DB[u.status] }).eq('id', u.id))
+        .map(u => {
+          const fields: Record<string, unknown> = { status: Q_TO_DB[u.status] };
+          // Track completion time; clear it if status is ever moved back out of done.
+          fields.completed_at = u.status === 'done' ? now : null;
+          return supabase.from('bookings').update(fields).eq('id', u.id);
+        })
     );
     if (results.some(r => r.error)) toast.error('Could not save the change. Please retry.');
   }
@@ -315,6 +331,7 @@ export default function DashboardPage() {
     if (cur) updates.push({ id: cur.id, status: 'done' });
     if (nxt) updates.push({ id: nxt.id, status: 'current' });
     void persistStatus(updates);
+    if (cur) void createInvoiceForBooking(cur);
   }
 
   function markDone() {
@@ -322,6 +339,7 @@ export default function DashboardPage() {
     if (!cur) return;
     setQueue(prev => prev.map(p => (p.id === cur.id ? { ...p, status: 'done' } : p)));
     void persistStatus([{ id: cur.id, status: 'done' }]);
+    void createInvoiceForBooking(cur);
   }
 
   function skipCurrent() {
@@ -398,7 +416,7 @@ export default function DashboardPage() {
   }
 
   async function checkIn(bookingId: string) {
-    setCheckingInIds(prev => new Set([...prev, bookingId]));
+    setCheckingInIds(prev => { const s = new Set(prev); s.add(bookingId); return s; });
     const res = await fetch('/api/bookings/checkin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -472,80 +490,99 @@ export default function DashboardPage() {
       </div>
 
       {activeTab === 'walkins' && (
-        <div style={{maxWidth: 560}}>
-          {wiResult ? (
-            <div className={styles.card} style={{textAlign: 'center', padding: '40px 24px'}}>
-              <div style={{fontSize: 72, fontWeight: 700, color: 'var(--teal)', lineHeight: 1, letterSpacing: '-2px'}}>
-                #{tok(wiResult.token)}
-              </div>
-              <div style={{fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 12}}>
-                Token #{tok(wiResult.token)} assigned
-              </div>
-              <div style={{fontSize: 14, color: 'var(--muted)', marginTop: 6}}>
-                {wiResult.aheadCount === 0
-                  ? 'Next up — no one ahead'
-                  : `${wiResult.aheadCount} ${wiResult.aheadCount === 1 ? 'person' : 'people'} ahead`}
-              </div>
-              <button
-                className={`${styles.actionBtn} ${styles.primary}`}
-                style={{marginTop: 24}}
-                onClick={() => setWiResult(null)}
-              >
-                Register another patient →
-              </button>
-            </div>
-          ) : (
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 2v12M2 8h12"/></svg>
-                <span className={styles.cardTitle}>Take Token</span>
-                <span className={styles.cardSub}>Walk-in registration</span>
-              </div>
-              <div style={{padding: '0 20px 20px'}}>
-                <div style={{display: 'flex', flexDirection: 'column', gap: 14, padding: '4px 0 16px'}}>
-                  <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-                    <div style={{flexShrink: 0, width: 88}}>
-                      <div className={styles.settingsRowLabel}>Full name <span style={{color:'var(--red)'}}>*</span></div>
-                    </div>
-                    <input
-                      className={styles.settingsInput}
-                      placeholder="e.g. Arjun Sharma"
-                      value={wiName}
-                      onChange={e => setWiName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && !wiAdding && addWalkin()}
-                      style={{flex: 1}}
-                      autoFocus
-                    />
-                  </div>
-                  <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-                    <div style={{flexShrink: 0, width: 88}}>
-                      <div className={styles.settingsRowLabel}>Phone</div>
-                      <div className={styles.settingsRowSub}>Optional</div>
-                    </div>
-                    <input
-                      className={styles.settingsInput}
-                      type="tel"
-                      inputMode="numeric"
-                      placeholder="10-digit number"
-                      value={wiPhone}
-                      onChange={e => setWiPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      style={{flex: 1}}
-                    />
-                  </div>
+        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start'}}>
+          {/* Left column: Take Token form + stats */}
+          <div>
+            {wiResult ? (
+              <div className={styles.card} style={{textAlign: 'center', padding: '40px 24px'}}>
+                <div style={{fontSize: 72, fontWeight: 700, color: 'var(--teal)', lineHeight: 1, letterSpacing: '-2px'}}>
+                  #{tok(wiResult.token)}
+                </div>
+                <div style={{fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 12}}>
+                  Token #{tok(wiResult.token)} assigned
+                </div>
+                <div style={{fontSize: 14, color: 'var(--muted)', marginTop: 6}}>
+                  {wiResult.aheadCount === 0
+                    ? 'Next up — no one ahead'
+                    : `${wiResult.aheadCount} ${wiResult.aheadCount === 1 ? 'person' : 'people'} ahead`}
                 </div>
                 <button
                   className={`${styles.actionBtn} ${styles.primary}`}
-                  style={{width: '100%', justifyContent: 'center'}}
-                  onClick={addWalkin}
-                  disabled={!wiName.trim() || wiAdding}
+                  style={{marginTop: 24}}
+                  onClick={() => setWiResult(null)}
                 >
-                  {wiAdding ? 'Assigning token…' : 'Take Token'}
+                  Register another patient →
                 </button>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 2v12M2 8h12"/></svg>
+                  <span className={styles.cardTitle}>Take Token</span>
+                  <span className={styles.cardSub}>Walk-in registration</span>
+                </div>
+                <div style={{padding: '0 20px 20px'}}>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: 14, padding: '4px 0 16px'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+                      <div style={{flexShrink: 0, width: 88}}>
+                        <div className={styles.settingsRowLabel}>Full name <span style={{color:'var(--red)'}}>*</span></div>
+                      </div>
+                      <input
+                        className={styles.settingsInput}
+                        placeholder="e.g. Arjun Sharma"
+                        value={wiName}
+                        onChange={e => setWiName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && !wiAdding && addWalkin()}
+                        style={{flex: 1}}
+                        autoFocus
+                      />
+                    </div>
+                    <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+                      <div style={{flexShrink: 0, width: 88}}>
+                        <div className={styles.settingsRowLabel}>Phone</div>
+                        <div className={styles.settingsRowSub}>Optional</div>
+                      </div>
+                      <input
+                        className={styles.settingsInput}
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="10-digit number"
+                        value={wiPhone}
+                        onChange={e => setWiPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        style={{flex: 1}}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    className={`${styles.actionBtn} ${styles.primary}`}
+                    style={{width: '100%', justifyContent: 'center'}}
+                    onClick={addWalkin}
+                    disabled={!wiName.trim() || wiAdding}
+                  >
+                    {wiAdding ? 'Assigning token…' : 'Take Token'}
+                  </button>
+                </div>
+              </div>
+            )}
 
-          <div className={styles.card} style={{marginTop: 16}}>
+            <div className={styles.statsRow} style={{marginTop: 16, marginBottom: 0}}>
+              {[
+                { label: 'Tokens issued', value: walkinList.length, cls: '', sub: 'Today total' },
+                { label: 'Waiting', value: walkinList.filter(w => w.status === 'waiting').length, cls: styles.amber, sub: 'In queue' },
+                { label: 'Done', value: walkinList.filter(w => w.status === 'done').length, cls: styles.green, sub: 'Completed' },
+                { label: 'Next token', value: `#${tok((walkinList.length > 0 ? Math.max(...walkinList.map(w => w.token)) : 0) + 1)}`, cls: styles.teal, sub: 'To be issued' },
+              ].map(s => (
+                <div key={s.label} className={styles.statCard}>
+                  <div className={styles.statLabel}>{s.label}</div>
+                  <div className={`${styles.statVal} ${s.cls}`} style={{fontSize: 26}}>{s.value}</div>
+                  <div className={styles.statChange} style={{color: 'var(--muted)'}}>{s.sub}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right column: Today's Walk-ins list */}
+          <div className={styles.card}>
             <div className={styles.cardHeader}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2.5 4h11M2.5 8h7M2.5 12h5"/></svg>
               <span className={styles.cardTitle}>Today&apos;s Walk-ins</span>
@@ -555,19 +592,39 @@ export default function DashboardPage() {
               <div style={{padding: '24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13}}>
                 No walk-ins yet today
               </div>
-            ) : walkinList.map(w => {
-              const statusColor = ({ done: 'var(--green)', called: 'var(--teal)', waiting: 'var(--amber)', skipped: 'var(--red)' } as Record<string,string>)[w.status] ?? 'var(--muted)';
-              const statusLabel = ({ done: 'Done', called: 'In session', waiting: 'Waiting', skipped: 'Skipped' } as Record<string,string>)[w.status] ?? w.status;
-              return (
-                <div key={w.id} className={`${styles.queueItem} ${styles[w.status as keyof typeof styles] ?? ''}`}>
-                  <div className={styles.queueToken}>{tok(w.token)}</div>
-                  <div className={styles.qInfo}>
-                    <div className={styles.qName}>{w.name}</div>
-                  </div>
-                  <span style={{fontSize: 12, fontWeight: 500, color: statusColor}}>{statusLabel}</span>
-                </div>
-              );
-            })}
+            ) : (
+              <div style={{ padding: '24px' }}>
+                {walkinList.map((w, index) => {
+                  const statusColor = ({ done: 'var(--green)', called: 'var(--teal)', waiting: 'var(--amber)', skipped: 'var(--red)' } as Record<string,string>)[w.status] ?? 'var(--muted)';
+                  const statusLabel = ({ done: 'Done', called: 'In session', waiting: 'Waiting', skipped: 'Skipped' } as Record<string,string>)[w.status] ?? w.status;
+                  const isLast = index === walkinList.length - 1;
+                  return (
+                    <div key={w.id} style={{ display: 'flex', gap: 20 }}>
+                      {/* Left gutter: token bubble + connector that fills exactly to next token's top */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 36 }}>
+                        <div className={styles.queueToken} style={{
+                          borderColor: statusColor, color: statusColor,
+                          background: w.status === 'called' ? 'var(--teal-dim)' : 'var(--surface)',
+                        }}>
+                          {tok(w.token)}
+                        </div>
+                        {!isLast && (
+                          <div style={{ flex: 1, width: 2, minHeight: 8, background: 'var(--border)', marginTop: 5 }} />
+                        )}
+                      </div>
+                      {/* Content — paddingBottom creates the inter-item gap that the connector spans */}
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: isLast ? 0 : 28, borderBottom: isLast ? 'none' : '1px solid var(--border)' }}>
+                        <div>
+                          <div className={styles.qName} style={{ fontSize: 15 }}>{w.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{w.status === 'called' ? 'Currently seeing' : (w.status === 'done' ? 'Completed' : (w.status === 'skipped' ? 'Skipped' : 'Waiting in line'))}</div>
+                        </div>
+                        <span style={{fontSize: 12, fontWeight: 500, color: statusColor, padding: '4px 10px', borderRadius: 20, background: w.status === 'called' ? 'var(--teal-dim)' : w.status === 'done' ? 'var(--green-dim)' : w.status === 'skipped' ? 'var(--red-dim)' : 'var(--amber-dim)'}}>{statusLabel}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -620,19 +677,34 @@ export default function DashboardPage() {
               <span className={styles.cardTitle}>Queue</span>
               <span className={styles.cardSub}>{queue.length} total · {waiting.length} waiting</span>
             </div>
-            <div>
-              {queue.map(p => (
-                <div key={p.token} className={`${styles.queueItem} ${styles[p.status]}`}>
-                  <div className={styles.queueToken}>{tok(p.token)}</div>
+            <div style={{ padding: '24px' }}>
+              {queue.map((p, index) => {
+                const isLast = index === queue.length - 1;
+                const tokenColor = p.status === 'current' ? 'var(--teal)' : p.status === 'done' ? 'var(--green)' : p.status === 'skipped' ? 'var(--red)' : 'var(--amber)';
+                return (
+                <div key={p.token} style={{ display: 'flex', gap: 20, position: 'relative', alignItems: 'center', paddingBottom: isLast ? 0 : 28 }}>
+                  {/* Connector: absolute, strictly within the 36px token column, behind token (zIndex 0) */}
+                  {!isLast && (
+                    <div style={{ position: 'absolute', left: 17, width: 2, top: 36, bottom: 0, background: 'var(--border)', zIndex: 0 }} />
+                  )}
+                  {/* Token bubble: zIndex 1 sits above the connector */}
+                  <div className={styles.queueToken} style={{
+                    flexShrink: 0, position: 'relative', zIndex: 1,
+                    borderColor: tokenColor, color: tokenColor,
+                    background: p.status === 'current' ? 'var(--teal-dim)' : 'var(--surface)',
+                  }}>
+                    {tok(p.token)}
+                  </div>
+                  {/* Content */}
                   <div className={styles.qInfo}>
-                    <div className={styles.qName}>{p.name}</div>
-                    <div className={styles.qMeta}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className={styles.qName} style={{ fontSize: 15 }}>{p.name}</span>
                       {p.source === 'appointment' ? (
-                        <span style={{fontSize:10,fontWeight:600,letterSpacing:0.3,padding:'1px 6px',borderRadius:4,background:'var(--teal-dim)',color:'var(--teal)',border:'1px solid var(--teal-border)'}}>
+                        <span style={{flexShrink:0,fontSize:10,fontWeight:600,letterSpacing:0.3,padding:'1px 6px',borderRadius:4,background:'var(--teal-dim)',color:'var(--teal)',border:'1px solid var(--teal-border)'}}>
                           Appt {p.slotTime || '—'}
                         </span>
                       ) : (
-                        <span style={{fontSize:10,fontWeight:600,letterSpacing:0.3,padding:'1px 6px',borderRadius:4,background:'rgba(251,191,36,0.12)',color:'var(--amber)',border:'1px solid rgba(251,191,36,0.3)'}}>
+                        <span style={{flexShrink:0,fontSize:10,fontWeight:600,letterSpacing:0.3,padding:'1px 6px',borderRadius:4,background:'rgba(251,191,36,0.12)',color:'var(--amber)',border:'1px solid rgba(251,191,36,0.3)'}}>
                           Walk-in
                         </span>
                       )}
@@ -642,7 +714,8 @@ export default function DashboardPage() {
                     {{ done: 'Done', current: 'In', waiting: 'Waiting', skipped: 'Skipped' }[p.status]}
                   </span>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import styles from '../page.module.css';
+import { CustomSelect } from '@/components/CustomSelect';
 import { useTheme } from '../../theme-provider';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { createClient } from '@/lib/supabase/client';
+import { useClinic } from '../clinic-context';
 import toast from 'react-hot-toast';
 import { regenerateQrToken } from './actions';
 
@@ -29,6 +31,7 @@ function slugify(value: string): string {
 
 export default function SettingsPage() {
   const { theme } = useTheme();
+  const { selected: clinic, refetch } = useClinic();
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const [settingsTab, setSettingsTab] = useState<'profile' | 'schedule'>('profile');
@@ -64,40 +67,27 @@ export default function SettingsPage() {
   const qrShareUrl = qrToken ? `${qrBase}/q/${qrToken}` : '';
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const user = session?.user;
-      if (!user) return;
-
-      supabase
-        .from('clinics')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-        .then(({ data }) => {
-          if (!data) return;
-          setClinicId(data.id);
-          if (data.slug) setSlug(data.slug);
-          if (data.qr_token) setQrToken(data.qr_token);
-          setEditDocName(data.doctor_name || '');
-          setEditSpec(data.spec || '');
-          setEditQual(data.qual || '');
-          setEditClinicName(data.name || '');
-          setEditAddress(data.address || '');
-          setEditPhone(data.phone || '');
-          setEditFee(data.fee ? String(data.fee) : '');
-          if (Array.isArray(data.days) && data.days.length) setEditDays(data.days);
-          if (data.hours) {
-            if (data.hours.mStart) setEditMorningStart(data.hours.mStart);
-            if (data.hours.mEnd) setEditMorningEnd(data.hours.mEnd);
-            if (data.hours.eStart) setEditEveningStart(data.hours.eStart);
-            if (data.hours.eEnd) setEditEveningEnd(data.hours.eEnd);
-          }
-          if (data.slot_duration) setEditSlotDuration(String(data.slot_duration));
-          if (data.max_patients) setEditMaxPatients(String(data.max_patients));
-        });
-    });
-  }, []);
+    if (!clinic) return;
+    setClinicId(clinic.id);
+    if (clinic.slug) setSlug(clinic.slug);
+    if (clinic.qr_token) setQrToken(clinic.qr_token);
+    setEditDocName(clinic.doctor_name || '');
+    setEditSpec(clinic.spec || '');
+    setEditQual(clinic.qual || '');
+    setEditClinicName(clinic.name || '');
+    setEditAddress(clinic.address || '');
+    setEditPhone(clinic.phone || '');
+    setEditFee(clinic.fee ? String(clinic.fee) : '');
+    if (Array.isArray(clinic.days) && clinic.days.length) setEditDays(clinic.days);
+    if (clinic.hours) {
+      if (clinic.hours.mStart) setEditMorningStart(clinic.hours.mStart);
+      if (clinic.hours.mEnd) setEditMorningEnd(clinic.hours.mEnd);
+      if (clinic.hours.eStart) setEditEveningStart(clinic.hours.eStart);
+      if (clinic.hours.eEnd) setEditEveningEnd(clinic.hours.eEnd);
+    }
+    if (clinic.slot_duration) setEditSlotDuration(String(clinic.slot_duration));
+    if (clinic.max_patients) setEditMaxPatients(String(clinic.max_patients));
+  }, [clinic?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function saveClinicProfile() {
     if (!editDocName.trim() || !editClinicName.trim()) {
@@ -155,6 +145,7 @@ export default function SettingsPage() {
     } else {
       setSlug(newSlug);
       window.dispatchEvent(new CustomEvent('clinic:updated', { detail: { name: payload.name } }));
+      void refetch();
       toast.success('Clinic profile saved');
     }
     setSaving(false);
@@ -180,7 +171,7 @@ export default function SettingsPage() {
     }).eq('id', clinicId);
 
     if (error) toast.error(error.message);
-    else toast.success('Schedule saved');
+    else { void refetch(); toast.success('Schedule saved'); }
     setSaving(false);
   }
 
@@ -256,10 +247,16 @@ export default function SettingsPage() {
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Specialisation</label>
-                  <select className={styles.formInput} value={editSpec} onChange={e => setEditSpec(e.target.value)}>
-                    <option value="">Select specialisation</option>
-                    {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <CustomSelect
+                    value={editSpec}
+                    onChange={v => setEditSpec(v)}
+                    placeholder="Select specialisation"
+                    options={[
+                      { value: '', label: 'Select specialisation' },
+                      ...SPECIALTIES.map(s => ({ value: s, label: s })),
+                    ]}
+                    style={{ width: '100%', height: 40 }}
+                  />
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Clinic name</label>
