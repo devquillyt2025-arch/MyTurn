@@ -31,10 +31,10 @@ function Counter({ to, suffix = '' }: { to: number; suffix?: string }) {
 function Reveal({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: CSSProperties }) {
   return (
     <motion.div style={style}
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 30, filter: 'blur(6px)' }}
+      whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] }}
     >{children}</motion.div>
   );
 }
@@ -55,10 +55,10 @@ function StepCard({ step, Icon, title, desc, delay }: {
   const [hovered, setHovered] = useState(false);
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 40, filter: 'blur(5px)' }}
+      whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       <div
         style={{
@@ -69,7 +69,8 @@ function StepCard({ step, Icon, title, desc, delay }: {
           transition: 'border-color .2s, background .2s, transform .2s, box-shadow .2s',
           borderLeft: hovered ? '2px solid #0D9488' : '2px solid rgba(255,255,255,0.09)',
           transform: hovered ? 'scale(1.02)' : 'scale(1)',
-          boxShadow: hovered ? '0 8px 40px rgba(13,148,136,.12)' : 'none',
+          background: hovered ? 'radial-gradient(circle at 0% 0%, rgba(20,216,200,.07) 0%, rgba(255,255,255,.03) 100%)' : 'rgba(255,255,255,0.04)',
+          boxShadow: hovered ? '0 8px 40px rgba(13,148,136,.2), 0 0 0 1px rgba(20,216,200,.08)' : 'none',
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -90,10 +91,10 @@ function BentoCard({ children, gridStyle, pad = 24, delay = 0 }: {
   const [hovered, setHovered] = useState(false);
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 30, filter: 'blur(5px)' }}
+      whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ scale: 1.01 }}
       style={gridStyle}
     >
@@ -102,12 +103,12 @@ function BentoCard({ children, gridStyle, pad = 24, delay = 0 }: {
         onMouseLeave={() => setHovered(false)}
         style={{
           height: '100%',
-          background: 'rgba(255,255,255,0.03)',
-          border: `1px solid ${hovered ? 'rgba(13,148,136,0.3)' : 'rgba(255,255,255,0.06)'}`,
+          background: hovered ? 'radial-gradient(circle at 10% 10%, rgba(20,216,200,.05) 0%, rgba(255,255,255,.03) 100%)' : 'rgba(255,255,255,0.03)',
+          border: `1px solid ${hovered ? 'rgba(13,148,136,0.5)' : 'rgba(255,255,255,0.06)'}`,
           borderRadius: 20,
           padding: pad,
-          boxShadow: hovered ? '0 12px 48px rgba(13,148,136,.14)' : 'none',
-          transition: 'border-color .25s, box-shadow .25s',
+          boxShadow: hovered ? '0 12px 48px rgba(13,148,136,.28), 0 0 0 1px rgba(20,216,200,.1)' : 'none',
+          transition: 'border-color .25s, box-shadow .25s, background .25s',
           overflow: 'hidden',
           position: 'relative',
         }}
@@ -355,19 +356,26 @@ export default function LandingPage() {
         @keyframes blob2{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-70px,65px) scale(1.08)}66%{transform:translate(55px,-55px) scale(.96)}}
         @keyframes blob3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(35px,-60px) scale(1.15)}}
         @keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.8)}}
-        @keyframes cardFloat{0%,100%{transform:translateY(0px)}50%{transform:translateY(-12px)}}
+        @keyframes cardFloat{0%,100%{transform:translateY(0px) rotate(0deg)}33%{transform:translateY(-7px) rotate(-.25deg)}66%{transform:translateY(-13px) rotate(.18deg)}}
+        @keyframes cardGlow{0%,100%{box-shadow:0 0 28px rgba(13,148,136,.18),0 24px 64px rgba(0,0,0,.55)}50%{box-shadow:0 0 55px rgba(13,148,136,.42),0 24px 64px rgba(0,0,0,.55)}}
+        @keyframes glowPulse{0%,100%{box-shadow:0 0 24px rgba(13,148,136,.3)}50%{box-shadow:0 0 48px rgba(13,148,136,.65),0 0 80px rgba(13,148,136,.2)}}
+        @keyframes ringExpand{0%{opacity:.85;transform:scale(1)}100%{opacity:0;transform:scale(2.8)}}
+        @keyframes textGlow{0%,100%{text-shadow:0 0 0 transparent}50%{text-shadow:0 0 22px rgba(13,148,136,.6)}}
+        @keyframes shimmerBadge{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        @keyframes qtShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        @keyframes qtBar{0%,100%{opacity:1}50%{opacity:.4}}
+        @keyframes qtSignal{0%,100%{opacity:1}50%{opacity:.5}}
         .lp-blob{animation-timing-function:ease-in-out;animation-iteration-count:infinite;pointer-events:none;position:absolute;border-radius:50%;filter:blur(80px)}
         .lp-b1{animation-name:blob1;animation-duration:28s}
         .lp-b2{animation-name:blob2;animation-duration:24s}
         .lp-b3{animation-name:blob3;animation-duration:20s}
-        .live-dot{animation:livePulse 1.8s ease infinite;display:inline-block;width:7px;height:7px;border-radius:50%;background:#14D8C8;flex-shrink:0}
-        .card-float-0{animation:cardFloat 5s ease-in-out infinite;animation-delay:0s}
-        .card-float-1{animation:cardFloat 5s ease-in-out infinite;animation-delay:0.8s}
-        .card-float-2{animation:cardFloat 5s ease-in-out infinite;animation-delay:1.6s}
-        .card-float-3{animation:cardFloat 5s ease-in-out infinite;animation-delay:2.4s}
-        @keyframes qtShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-        @keyframes qtBar{0%,100%{opacity:1}50%{opacity:.4}}
-        @keyframes qtSignal{0%,100%{opacity:1}50%{opacity:.5}}
+        .live-dot{animation:livePulse 1.8s ease infinite;display:inline-block;width:7px;height:7px;border-radius:50%;background:#14D8C8;flex-shrink:0;position:relative}
+        .live-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1.5px solid rgba(20,216,200,.7);animation:ringExpand 1.8s ease-out infinite}
+        .card-float-0{animation:cardFloat 5.2s ease-in-out infinite;animation-delay:0s}
+        .card-float-1{animation:cardFloat 5.2s ease-in-out infinite;animation-delay:0.9s}
+        .card-float-2{animation:cardFloat 5.2s ease-in-out infinite;animation-delay:1.7s}
+        .card-float-3{animation:cardFloat 5.2s ease-in-out infinite;animation-delay:2.5s}
+        .card-glow{animation:cardGlow 3.2s ease-in-out infinite}
         .bento-grid{display:grid;gap:18px;grid-template-columns:1fr;}
         @media (min-width:860px){
           .bento-grid{
@@ -376,9 +384,6 @@ export default function LandingPage() {
             grid-template-areas:"card1 card1 card2" "card3 card4 card4";
           }
         }
-        /* ── Mobile responsive overrides ─────────────────────────────── */
-        /* Below the bento breakpoint, drop the named grid-areas so the cards
-           stack one-per-row instead of collapsing onto the same cell. */
         @media (max-width:859px){
           .bento-grid > *{grid-area:auto !important;}
         }
@@ -387,7 +392,6 @@ export default function LandingPage() {
           .lp-hero{padding:92px 20px 56px !important;min-height:auto !important;}
           .lp-hero-grid{grid-template-columns:1fr !important;gap:40px !important;}
           .lp-hero-h1{font-size:clamp(34px,9vw,46px) !important;letter-spacing:-1px !important;}
-          /* Decorative floating cards overlap the copy on narrow screens. */
           .lp-hero-visual{display:none !important;}
           .lp-grid-3{grid-template-columns:1fr !important;}
         }
@@ -395,6 +399,9 @@ export default function LandingPage() {
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:5px;background:#080B14}
         ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+        @media (prefers-reduced-motion:reduce){
+          .lp-blob,.live-dot,.live-dot::after,.card-float-0,.card-float-1,.card-float-2,.card-float-3,.card-glow,*{animation-duration:.01ms !important;animation-iteration-count:1 !important;}
+        }
       ` }} />
 
       <div style={{
@@ -443,27 +450,27 @@ export default function LandingPage() {
 
                 {/* Headline — delay 0.2 */}
                 <motion.div
-                  initial={{ opacity: 0, y: 24 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: .65, delay: .2, ease: [.22, 1, .36, 1] }}
+                  initial={{ opacity: 0, y: 24, filter: 'blur(8px)' }}
+                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  transition={{ duration: .7, delay: .2, ease: [.22, 1, .36, 1] }}
                 >
                   <h1 className="lp-hero-h1" style={{ fontSize: 'clamp(44px,4.8vw,76px)', fontWeight: 900, lineHeight: 1.04, letterSpacing: '-2.5px', marginBottom: 28, margin: 0 }}>
                     No More Chaotic<br />
                     {/* Pill — delay 0.4 */}
                     <motion.span
-                      initial={{ opacity: 0, scale: .95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: .5, delay: .4, ease: [.22, 1, .36, 1] }}
-                      style={{ display: 'inline-block', marginTop: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.13)', borderRadius: 18, padding: '2px 22px 8px', color: '#14D8C8' }}
+                      initial={{ opacity: 0, scale: .95, filter: 'blur(4px)' }}
+                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                      transition={{ duration: .55, delay: .4, ease: [.22, 1, .36, 1] }}
+                      style={{ display: 'inline-block', marginTop: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.13)', borderRadius: 18, padding: '2px 22px 8px', color: '#14D8C8', animation: 'textGlow 3.5s ease-in-out infinite', boxShadow: '0 0 40px rgba(13,148,136,.12), inset 0 1px 0 rgba(255,255,255,.07)' }}
                     >Waiting Rooms</motion.span>
                   </h1>
                 </motion.div>
 
                 {/* Subheadline — delay 0.6 */}
                 <motion.p
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: .65, delay: .6 }}
+                  initial={{ opacity: 0, y: 20, filter: 'blur(6px)' }}
+                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  transition={{ duration: .7, delay: .6 }}
                   style={{ fontSize: 18, lineHeight: 1.75, color: '#94A3B8', marginTop: 24, marginBottom: 44, maxWidth: 460, fontWeight: 300 }}
                 >
                   QR-based queue management built for Indian clinics.<br />Patients wait smarter, doctors run on time.
@@ -516,7 +523,7 @@ export default function LandingPage() {
               <div className="lp-hero-visual" style={{ position: 'relative', height: 500 }}>
                 {/* Queue Live */}
                 <div className="card-float-0" style={{ position: 'absolute', top: 20, left: 0, width: 258 }}>
-                  <div style={{ ...glass, padding: '20px 22px', boxShadow: '0 0 30px rgba(13,148,136,.2), 0 24px 64px rgba(0,0,0,.55)' }}>
+                  <div className="card-glow" style={{ ...glass, padding: '20px 22px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4DFFB4', display: 'inline-block', animation: 'livePulse 1.8s ease infinite' }} />
                       <span style={{ fontSize: 11, fontWeight: 700, color: '#4DFFB4', letterSpacing: '.8px', textTransform: 'uppercase' }}>Queue Live</span>
@@ -588,7 +595,7 @@ export default function LandingPage() {
                 <motion.div
                   initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
                   transition={{ duration: .5 }}
-                  style={{ fontSize: 11, fontWeight: 700, color: '#0D9488', letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 14 }}
+                  style={{ fontSize: 11, fontWeight: 700, color: '#0D9488', letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 14, animation: 'textGlow 3s ease-in-out infinite' }}
                 >How it works</motion.div>
                 <motion.h2
                   initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -616,7 +623,7 @@ export default function LandingPage() {
                 <motion.div
                   initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
                   transition={{ duration: .5 }}
-                  style={{ fontSize: 11, fontWeight: 700, color: '#0D9488', letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 14 }}
+                  style={{ fontSize: 11, fontWeight: 700, color: '#0D9488', letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 14, animation: 'textGlow 3s ease-in-out infinite' }}
                 >Features</motion.div>
                 <motion.h2
                   initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -662,7 +669,7 @@ export default function LandingPage() {
               ] as const).map(({ to, suffix, label, note }, i) => (
                 <Reveal key={label} delay={i * 0.1}>
                   <div>
-                    <div style={{ fontSize: 'clamp(40px,5vw,64px)', fontWeight: 900, letterSpacing: '-2.5px', color: '#14D8C8', lineHeight: 1 }}>
+                    <div style={{ fontSize: 'clamp(40px,5vw,64px)', fontWeight: 900, letterSpacing: '-2.5px', color: '#14D8C8', lineHeight: 1, textShadow: '0 0 24px rgba(20,216,200,.4)' }}>
                       <Counter to={to} suffix={suffix} />
                     </div>
                     <div style={{ fontSize: 15, color: '#fff', fontWeight: 600, marginTop: 8 }}>{label}</div>
@@ -682,7 +689,7 @@ export default function LandingPage() {
                 <motion.div
                   initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
                   transition={{ duration: .5 }}
-                  style={{ fontSize: 11, fontWeight: 700, color: '#0D9488', letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 14 }}
+                  style={{ fontSize: 11, fontWeight: 700, color: '#0D9488', letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 14, animation: 'textGlow 3s ease-in-out infinite' }}
                 >Pricing</motion.div>
                 <motion.h2
                   initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -731,7 +738,7 @@ export default function LandingPage() {
                   onMouseEnter={e => { const d = e.currentTarget as HTMLDivElement; d.style.transform = 'scale(1.02)'; d.style.boxShadow = '0 0 100px rgba(13,148,136,.3)'; }}
                   onMouseLeave={e => { const d = e.currentTarget as HTMLDivElement; d.style.transform = 'none'; d.style.boxShadow = '0 0 80px rgba(13,148,136,.18)'; }}
                 >
-                  <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(90deg,#0D9488,#14D8C8)', borderRadius: 99, padding: '5px 18px', fontSize: 11, fontWeight: 800, color: '#080B14', whiteSpace: 'nowrap' }}>✦ Most Popular</div>
+                  <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(90deg,#0D9488,#14D8C8,#0D9488)', backgroundSize: '200% auto', animation: 'shimmerBadge 3s linear infinite', borderRadius: 99, padding: '5px 18px', fontSize: 11, fontWeight: 800, color: '#080B14', whiteSpace: 'nowrap' }}>✦ Most Popular</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#14D8C8', letterSpacing: '.5px', marginBottom: 10 }}>Basic</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
                     <span style={{ fontSize: 52, fontWeight: 900, letterSpacing: '-2.5px', color: '#fff', lineHeight: 1 }}>₹999</span>
