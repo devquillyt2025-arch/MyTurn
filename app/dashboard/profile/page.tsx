@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import styles from '../page.module.css';
 import { createClient } from '@/lib/supabase/client';
+import { useClinic } from '../clinic-context';
 import toast from 'react-hot-toast';
 
 const LANG_SUGGESTIONS = [
@@ -15,6 +16,7 @@ const BIO_MAX = 300;
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
 export default function ProfilePage() {
+  const { selected: clinic, userId: ctxUserId, refetch } = useClinic();
   const [clinicId, setClinicId] = useState('');
   const [userId, setUserId] = useState('');
 
@@ -49,47 +51,46 @@ export default function ProfilePage() {
   const [pwError, setPwError] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
 
+  // Sync user identity from context (no separate auth call needed).
   useEffect(() => {
+    if (!ctxUserId) return;
+    setUserId(ctxUserId);
     const supabase = createClient();
     supabase.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user;
       if (!user) return;
-      setUserId(user.id);
       if (user.email) setUserEmail(user.email);
       setUserProvider(user.app_metadata?.provider ?? '');
-      supabase
-        .from('clinics')
-        .select('id, doctor_name, spec, qual, name, address, avatar_url, bio, languages')
-        .eq('user_id', user.id)
-        .single()
-        .then(({ data }) => {
-          if (!data) return;
-          setClinicId(data.id);
-          if (data.doctor_name) {
-            setDoctorName(data.doctor_name);
-            setDoctorInitials(
-              data.doctor_name
-                .replace(/^dr\.?\s*/i, '')
-                .split(' ')
-                .map((w: string) => w[0])
-                .slice(0, 2)
-                .join('')
-                .toUpperCase()
-            );
-          }
-          if (data.spec || data.qual) {
-            setDoctorRole([data.qual, data.spec].filter(Boolean).join(' · '));
-          }
-          setClinicName(data.name || '');
-          setClinicAddress(data.address || '');
-          setBio(data.bio || '');
-          setAvatarUrl(data.avatar_url || '');
-          setLanguages(
-            data.languages ? data.languages.split(',').map((s: string) => s.trim()).filter(Boolean) : []
-          );
-        });
     });
-  }, []);
+  }, [ctxUserId]);
+
+  // Populate form fields from the selected clinic.
+  useEffect(() => {
+    if (!clinic) return;
+    setClinicId(clinic.id);
+    if (clinic.doctor_name) {
+      setDoctorName(clinic.doctor_name);
+      setDoctorInitials(
+        clinic.doctor_name
+          .replace(/^dr\.?\s*/i, '')
+          .split(' ')
+          .map((w: string) => w[0])
+          .slice(0, 2)
+          .join('')
+          .toUpperCase()
+      );
+    }
+    if (clinic.spec || clinic.qual) {
+      setDoctorRole([clinic.qual, clinic.spec].filter(Boolean).join(' · '));
+    }
+    setClinicName(clinic.name || '');
+    setClinicAddress(clinic.address || '');
+    setBio(clinic.bio || '');
+    setAvatarUrl(clinic.avatar_url || '');
+    setLanguages(
+      clinic.languages ? clinic.languages.split(',').map((s: string) => s.trim()).filter(Boolean) : []
+    );
+  }, [clinic?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Avatar upload ────────────────────────────────────────────────────────
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -157,6 +158,7 @@ export default function ProfilePage() {
     }).eq('id', clinicId);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
+    void refetch();
     toast.success('Profile updated');
   }
 

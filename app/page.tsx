@@ -298,7 +298,7 @@ function Nav() {
             My<span style={{ color: '#fff' }}>Turn</span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 32, flex: 1 }}>
+        <div className="lp-nav-links" style={{ display: 'flex', gap: 32, flex: 1 }}>
           {(['#features', '#how-it-works', '#pricing'] as const).map((href, i) => {
             const labels = ['Features', 'How it Works', 'Pricing'];
             return (
@@ -316,7 +316,7 @@ function Nav() {
         }}
           onMouseEnter={e => { e.currentTarget.style.opacity = '.88'; e.currentTarget.style.boxShadow = '0 0 32px rgba(13,148,136,.55)'; }}
           onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.boxShadow = '0 0 24px rgba(13,148,136,.3)'; }}
-        >Get Started Free</Link>
+        >Login / Signup</Link>
       </div>
     </nav>
   );
@@ -376,6 +376,21 @@ export default function LandingPage() {
             grid-template-areas:"card1 card1 card2" "card3 card4 card4";
           }
         }
+        /* ── Mobile responsive overrides ─────────────────────────────── */
+        /* Below the bento breakpoint, drop the named grid-areas so the cards
+           stack one-per-row instead of collapsing onto the same cell. */
+        @media (max-width:859px){
+          .bento-grid > *{grid-area:auto !important;}
+        }
+        @media (max-width:760px){
+          .lp-nav-links{display:none !important;}
+          .lp-hero{padding:92px 20px 56px !important;min-height:auto !important;}
+          .lp-hero-grid{grid-template-columns:1fr !important;gap:40px !important;}
+          .lp-hero-h1{font-size:clamp(34px,9vw,46px) !important;letter-spacing:-1px !important;}
+          /* Decorative floating cards overlap the copy on narrow screens. */
+          .lp-hero-visual{display:none !important;}
+          .lp-grid-3{grid-template-columns:1fr !important;}
+        }
         html{scroll-behavior:smooth}
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:5px;background:#080B14}
@@ -397,7 +412,7 @@ export default function LandingPage() {
         <Nav />
 
         {/* ═══ HERO ═════════════════════════════════════════════════ */}
-        <section id="hero" style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '100px 28px 80px' }}>
+        <section id="hero" className="lp-hero" style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '100px 28px 80px' }}>
           {/* Blobs */}
           <div className="lp-blob lp-b1" style={{ top: '5%', left: '-10%', width: 700, height: 700, background: 'radial-gradient(circle, rgba(124,58,237,.2) 0%, transparent 70%)' }} />
           <div className="lp-blob lp-b2" style={{ top: '10%', right: '-14%', width: 780, height: 780, background: 'radial-gradient(circle, rgba(20,216,200,.12) 0%, transparent 70%)' }} />
@@ -411,7 +426,7 @@ export default function LandingPage() {
           }} />
 
           <div style={{ maxWidth: 1180, margin: '0 auto', width: '100%', position: 'relative', zIndex: 2 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 72, alignItems: 'center' }}>
+            <div className="lp-hero-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 72, alignItems: 'center' }}>
 
               {/* ── Left copy ── */}
               <div>
@@ -432,7 +447,7 @@ export default function LandingPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: .65, delay: .2, ease: [.22, 1, .36, 1] }}
                 >
-                  <h1 style={{ fontSize: 'clamp(44px,4.8vw,76px)', fontWeight: 900, lineHeight: 1.04, letterSpacing: '-2.5px', marginBottom: 28, margin: 0 }}>
+                  <h1 className="lp-hero-h1" style={{ fontSize: 'clamp(44px,4.8vw,76px)', fontWeight: 900, lineHeight: 1.04, letterSpacing: '-2.5px', marginBottom: 28, margin: 0 }}>
                     No More Chaotic<br />
                     {/* Pill — delay 0.4 */}
                     <motion.span
@@ -469,7 +484,7 @@ export default function LandingPage() {
                   }}
                     onMouseEnter={e => { e.currentTarget.style.opacity = '.88'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 0 36px rgba(13,148,136,.6)'; }}
                     onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 0 50px rgba(13,148,136,.4)'; }}
-                  >Get Started Free <IconArrow /></Link>
+                  >Login / Signup <IconArrow /></Link>
 
                   <a href="#how-it-works" style={{
                     display: 'inline-flex', alignItems: 'center', gap: 9,
@@ -498,7 +513,7 @@ export default function LandingPage() {
               </div>
 
               {/* ── Right: floating cards ── */}
-              <div style={{ position: 'relative', height: 500 }}>
+              <div className="lp-hero-visual" style={{ position: 'relative', height: 500 }}>
                 {/* Queue Live */}
                 <div className="card-float-0" style={{ position: 'absolute', top: 20, left: 0, width: 258 }}>
                   <div style={{ ...glass, padding: '20px 22px', boxShadow: '0 0 30px rgba(13,148,136,.2), 0 24px 64px rgba(0,0,0,.55)' }}>
@@ -584,7 +599,7 @@ export default function LandingPage() {
                 </motion.h2>
               </div>
             </Reveal>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
+            <div className="lp-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
               <StepCard step="01" Icon={IconQR}    title="Clinic generates a QR"       desc="Doctor sets up a clinic profile and generates a unique QR code in under 2 minutes. No hardware required." delay={0} />
               <StepCard step="02" Icon={IconPhone} title="Patient scans & joins queue"  desc="Patient scans the code with any phone camera — no app, no sign-up. They're added to the live queue instantly." delay={0.15} />
               <StepCard step="03" Icon={IconBell}  title="Notified when it's their turn" desc="Live token updates on their phone. Wait comfortably — outside, in their car, or at a nearby café." delay={0.3} />
@@ -639,7 +654,7 @@ export default function LandingPage() {
           borderBottom: '1px solid rgba(255,255,255,.05)',
         }}>
           <div style={{ maxWidth: 900, margin: '0 auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 40, textAlign: 'center' }}>
+            <div className="lp-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 40, textAlign: 'center' }}>
               {([
                 { to: 500,   suffix: '+',    label: 'Clinics using MyTurn', note: 'and growing every day' },
                 { to: 10000, suffix: '+',    label: 'Patients served',       note: 'across India' },
@@ -677,7 +692,7 @@ export default function LandingPage() {
                 <p style={{ fontSize: 16, color: '#94A3B8', marginTop: 16, fontWeight: 300 }}>Start free. Upgrade when you&apos;re ready. No contracts.</p>
               </div>
             </Reveal>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 22 }}>
+            <div className="lp-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 22 }}>
               {/* Free */}
               <Reveal delay={0.05}>
                 <div style={{ ...glass, padding: '40px 36px', height: '100%', cursor: 'pointer', transition: 'transform .2s, box-shadow .2s' }}

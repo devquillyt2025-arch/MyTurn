@@ -37,14 +37,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    const { clinic_id, slot_id, patient_name, patient_phone } = body as {
+    const { clinic_id, slot_id, patient_name, patient_phone = '', source: rawSource } = body as {
       clinic_id: string;
       slot_id?: string | null;
       patient_name: string;
-      patient_phone: string;
+      patient_phone?: string;
+      source?: string;
     };
 
-    if (!clinic_id || !patient_name || !patient_phone) {
+    const source = rawSource === 'appointment' ? 'appointment' : 'walkin';
+
+    if (!clinic_id || !patient_name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
     // Resolve the clinic's plan via doctors table
     const { data: clinic } = await supabase
       .from('clinics')
-      .select('user_id')
+      .select('user_id, name')
       .eq('id', clinic_id)
       .single();
 
@@ -103,18 +106,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // SECURITY FIX: Atomic token assignment via Postgres advisory lock.
-    // Replaces the previous MAX(token_number)+1 read-then-write that allowed duplicates.
-    const { data: nextToken, error: tokenError } = await supabase.rpc('get_next_token', {
-      p_clinic_id: clinic_id,
-    });
-    if (tokenError || nextToken === null || nextToken === undefined) {
-      console.error('[POST /api/bookings] get_next_token error:', tokenError);
-      return NextResponse.json({ error: 'Failed to assign token number' }, { status: 500 });
-    }
-    const assignedToken = nextToken as number;
+    // Walk-ins get a token immediately; appointments get one only at check-in.
+    let assignedToken: number | null = null;
+    let checkedInAt: string | null = null;
 
-    // Create the booking
+    if (source === 'walkin') {
+      const { data: nextToken, error: tokenError } = await supabase.rpc('get_next_token', {
+        p_clinic_id: clinic_id,
+      });
+      if (tokenError || nextToken === null || nextToken === undefined) {
+        console.error('[POST /api/bookings] get_next_token error:', tokenError);
+        return NextResponse.json({ error: 'Failed to assign token number' }, { status: 500 });
+      }
+      assignedToken = nextToken as number;
+      checkedInAt = new Date().toISOString();
+    }
+
+    // Create the booking.
+    // assigned_at is set now for walk-ins (token issued immediately).
+    // For appointments it stays null until they check in and get a token.
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
@@ -124,8 +134,11 @@ export async function POST(request: NextRequest) {
         patient_phone,
         token_number: assignedToken,
         status: 'waiting',
+        source,
+        checked_in_at: checkedInAt,
+        assigned_at: source === 'walkin' ? checkedInAt : null,
       })
-      .select('id, token_number')
+      .select('id, token_number, source')
       .single();
 
     if (bookingError) {
@@ -145,6 +158,25 @@ export async function POST(request: NextRequest) {
           .from('usage_logs')
           .insert({ clinic_id, date: today, booking_count: 1 });
       }
+    }
+
+    // Fire-and-forget simulated notification log (never blocks the response).
+    {
+      const clinicName = (clinic as { name?: string } | null)?.name ?? '';
+      const paddedToken = assignedToken !== null ? String(assignedToken).padStart(2, '0') : '';
+      const msgContent = source === 'walkin'
+        ? `Hi ${patient_name}! Your walk-in token #${paddedToken} is ready at ${clinicName}. Please wait to be called.`
+        : `Hi ${patient_name}! Your appointment at ${clinicName} is confirmed. We look forward to seeing you!`;
+      supabase.from('notifications_log').insert({
+        clinic_id,
+        booking_id: booking.id,
+        patient_name,
+        patient_phone: patient_phone ?? '',
+        channel: 'sms',
+        message_type: source === 'walkin' ? 'token_issued' : 'appointment_confirmed',
+        message_content: msgContent,
+        status: 'sent',
+      }).then(() => { /* intentionally fire-and-forget */ });
     }
 
     return NextResponse.json({ booking }, { status: 201 });

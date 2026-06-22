@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import styles from '../page.module.css';
 import { createClient } from '@/lib/supabase/client';
+import { useClinic } from '../clinic-context';
 import toast from 'react-hot-toast';
 
 const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -39,44 +40,35 @@ function toRow(b: RawBooking): Row {
 }
 
 export default function AnalyticsPage() {
-  const [clinicName, setClinicName] = useState('');
+  const { selected: clinic } = useClinic();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const clinicName = clinic?.name ?? '';
+
   useEffect(() => {
+    if (!clinic) return;
+    setLoading(true);
+    setRows([]);
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const user = session?.user;
-      if (!user) { setLoading(false); return; }
-      supabase
-        .from('clinics')
-        .select('id, name')
-        .eq('user_id', user.id)
-        .single()
-        .then(async ({ data }) => {
-          if (!data) { setLoading(false); return; }
-          if (data.name) setClinicName(data.name);
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(today.getDate() - 6);
+    const from = toLocalIso(start);
+    const to = toLocalIso(today);
 
-          const today = new Date();
-          const start = new Date(today);
-          start.setDate(today.getDate() - 6);
-          const from = toLocalIso(start);
-          const to = toLocalIso(today);
-
-          const [booked, walkins] = await Promise.all([
-            supabase.from('bookings').select('status, created_at, slots!inner(date, time)')
-              .eq('clinic_id', data.id).gte('slots.date', from).lte('slots.date', to),
-            supabase.from('bookings').select('status, created_at, slots(date, time)')
-              .eq('clinic_id', data.id).is('slot_id', null)
-              .gte('created_at', `${from}T00:00:00`).lte('created_at', `${to}T23:59:59`),
-          ]);
-
-          const all = [...(booked.data ?? []), ...(walkins.data ?? [])] as RawBooking[];
-          setRows(all.map(toRow));
-          setLoading(false);
-        });
+    Promise.all([
+      supabase.from('bookings').select('status, created_at, slots!inner(date, time)')
+        .eq('clinic_id', clinic.id).gte('slots.date', from).lte('slots.date', to),
+      supabase.from('bookings').select('status, created_at, slots(date, time)')
+        .eq('clinic_id', clinic.id).is('slot_id', null)
+        .gte('created_at', `${from}T00:00:00`).lte('created_at', `${to}T23:59:59`),
+    ]).then(([booked, walkins]) => {
+      const all = [...(booked.data ?? []), ...(walkins.data ?? [])] as RawBooking[];
+      setRows(all.map(toRow));
+      setLoading(false);
     });
-  }, []);
+  }, [clinic?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived stats ──────────────────────────────────────────────────────
   const today = new Date();

@@ -19,7 +19,7 @@ export default async function QrResolverPage({ params }: { params: { token: stri
     .single();
 
   if (data?.slug) {
-    redirect(`/book/${data.slug}`);
+    redirect(`/walkin/${data.slug}`);
   }
 
   return (
