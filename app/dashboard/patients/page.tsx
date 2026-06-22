@@ -24,7 +24,6 @@ interface QItem {
 
 type SortKey = 'token' | 'assigned' | 'completed' | 'status';
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const STATUS_MAP: Record<string, QStatus> = { waiting: 'waiting', called: 'current', done: 'done', skipped: 'skipped' };
 const Q_TO_DB: Record<QStatus, string> = { waiting: 'waiting', current: 'called', done: 'done', skipped: 'skipped' };
 const DB_STATUS_LABEL: Record<string, string> = { waiting: 'Waiting', called: 'In session', done: 'Done', skipped: 'No-show' };
